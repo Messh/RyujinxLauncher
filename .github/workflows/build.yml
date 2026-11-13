@@ -3,6 +3,7 @@ name: Build Launchers
 on:
   push:
     branches: [ "main", "master" ]
+    tags: [ "V_*" ]   # pushing a version tag also publishes a GitHub Release
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
@@ -77,3 +78,42 @@ jobs:
       with:
         name: EdenLauncher-${{ matrix.platform }}
         path: dist/EdenLauncher${{ matrix.ext }}
+
+  # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
+  # and publishes them as a GitHub Release named after the tag.
+  release:
+    name: Publish Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/V_')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download all build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    # Windows .exe files are attached as-is. Linux/macOS binaries are zipped
+    # after restoring the executable bit, which artifact downloads drop.
+    - name: Package release assets
+      run: |
+        mkdir release
+        for dir in artifacts/*/; do
+          name=$(basename "$dir")
+          if ls "$dir"*.exe >/dev/null 2>&1; then
+            cp "$dir"*.exe release/
+          else
+            chmod +x "$dir"*
+            (cd "$dir" && zip -r "../../release/${name}.zip" .)
+          fi
+        done
+        ls -l release
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ github.ref_name }}
+        files: release/*
+        generate_release_notes: true
