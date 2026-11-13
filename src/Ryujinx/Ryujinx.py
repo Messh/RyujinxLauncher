@@ -78,6 +78,13 @@ class Ryujinx(Emulator):
             self.exe = os.path.join(self.dir, "Ryujinx")
             self.config_path = os.path.expanduser("~/.config/Ryujinx/Config.json")
 
+        # -r / --root-data-dir on the command line wins over everything above:
+        # Ryujinx reads Config.json (and profiles/) from that folder, so the
+        # launcher must write the controller mapping there too.
+        root = _root_data_dir(sys.argv[1:])
+        if root:
+            self.config_path = os.path.join(root, "Config.json")
+
         if not os.path.exists(self.exe):
             fatal(
                 "Ryujinx Missing",
@@ -156,6 +163,25 @@ class Ryujinx(Emulator):
     def cleanup(self):
         if self.is_appimage:
             unmount_appimage()
+
+
+def _root_data_dir(args):
+    """
+    The value of Ryujinx's -r / --root-data-dir option, as an absolute path.
+
+    Accepts "-r DIR", "--root-data-dir DIR" and "--root-data-dir=DIR".
+    Relative paths resolve against the working directory, like Ryujinx does.
+    Returns None when the option is absent.
+    """
+    for i, arg in enumerate(args):
+        if arg.startswith("--root-data-dir="):
+            value = arg.split("=", 1)[1]
+        elif arg in ("-r", "--root-data-dir") and i + 1 < len(args):
+            value = args[i + 1]
+        else:
+            continue
+        return os.path.abspath(value.strip('"'))
+    return None
 
 
 def _version_tuple(version):

@@ -192,6 +192,14 @@ This launcher is designed to replace the default executable in Playnite.
     5. For **Supported Platform(s)** & **Supported File Types** refer to the default profile.
 6. Remove any previously added Ryujinx games from your library. Then, **Rescan your library** using this new profile to re-import your games with the correct launcher settings.
 
+**Extra emulator arguments:** Everything in **Arguments** is forwarded to the emulator unchanged, so you can add any flag the emulator supports, e.g.:
+
+```
+-r "{EmulatorDir}\portable" --fullscreen "{ImagePath}"
+```
+
+When `-r` / `--root-data-dir` is present, the launcher writes the controller mapping to the `Config.json` inside that folder and reads controller profiles from its `profiles\controller\` subfolder, the same files Ryujinx will use.
+
 
 ### Moonlight/Artemis & Sunshine/Apollo (Streaming)
 
