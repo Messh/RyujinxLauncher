@@ -33,6 +33,7 @@ class Ryujinx(Emulator):
         self.backend = "SDL2"
         self.backend_string = "GamepadSDL2"
         self.appimage_path = None
+        self.data_root = None     # -r folder or portable/, when Ryujinx uses one
 
     # ------------------------------------------------------------------
     # 1. Where everything lives
@@ -42,6 +43,7 @@ class Ryujinx(Emulator):
         Resolve the Ryujinx directory, binary and Config.json.
 
         Directory priority : RyujinxPath.config override > launcher directory.
+        Data priority      : -r <dir> > <exe dir>/portable > per-user default.
         On Linux an AppImage is mounted and self.dir becomes <mount>/usr/bin,
         so version detection, the SDL search path and the binary path all keep
         working unchanged from the mount point. The mount stays alive for the
@@ -52,17 +54,10 @@ class Ryujinx(Emulator):
         if sys.platform == "win32":
             self.exe = os.path.join(self.dir, "Ryujinx.exe")
 
-            # Config priority: portable > local > AppData
-            portable_config = os.path.join(self.dir, "portable", "Config.json")
+            # Without a data root (below): local > AppData
             local_config = os.path.join(self.dir, "Config.json")
             appdata_config = os.path.join(os.getenv('APPDATA'), "Ryujinx", "Config.json")
-
-            if os.path.exists(portable_config):
-                self.config_path = portable_config
-            elif os.path.exists(local_config):
-                self.config_path = local_config
-            else:
-                self.config_path = appdata_config
+            self.config_path = local_config if os.path.exists(local_config) else appdata_config
 
         elif sys.platform == "darwin":
             self.exe = os.path.join(self.dir, "Ryujinx")
@@ -78,12 +73,18 @@ class Ryujinx(Emulator):
             self.exe = os.path.join(self.dir, "Ryujinx")
             self.config_path = os.path.expanduser("~/.config/Ryujinx/Config.json")
 
-        # -r / --root-data-dir on the command line wins over everything above:
-        # Ryujinx reads Config.json (and profiles/) from that folder, so the
-        # launcher must write the controller mapping there too.
-        root = _root_data_dir(sys.argv[1:])
-        if root:
-            self.config_path = os.path.join(root, "Config.json")
+        # A data root replaces everything above, same priority Ryujinx uses:
+        #   1. -r / --root-data-dir on the command line
+        #   2. a "portable" folder next to the binary (it only has to exist)
+        # Ryujinx keeps Config.json, profiles/ and Logs/ there, so the launcher
+        # must write the controller mapping there too.
+        self.data_root = _root_data_dir(sys.argv[1:])
+        if not self.data_root:
+            portable = os.path.join(self.dir, "portable")
+            if os.path.isdir(portable):
+                self.data_root = portable
+        if self.data_root:
+            self.config_path = os.path.join(self.data_root, "Config.json")
 
         if not os.path.exists(self.exe):
             fatal(
@@ -93,6 +94,8 @@ class Ryujinx(Emulator):
             )
 
     def log_dir(self):
+        if self.data_root:
+            return os.path.join(self.data_root, "Logs")
         if sys.platform == "win32":
             return os.path.join(self.dir, "Logs")
         return os.path.expanduser("~/.config/Ryujinx/Logs")
