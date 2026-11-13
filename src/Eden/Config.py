@@ -29,6 +29,7 @@ nothing outside the player keys is ever rewritten.
 """
 
 import glob
+import json
 import os
 import re
 
@@ -199,6 +200,91 @@ def guid_fix(raw_hex):
     return raw_hex[:4] + "0000" + raw_hex[8:]
 
 
+# ----------------------------------------------------------------------------
+# Learning the GUIDs Eden itself sees
+#
+# Bytes 12-13 of an SDL GUID hold the product version, and on Windows Eden's
+# SDL and the launcher's SDL do not always read the same one for the same pad
+# (e.g. Eden 0x0100, launcher 0x0000). Eden matches GUIDs exactly, so a pad is
+# only found when the launcher writes Eden's version. That version cannot be
+# computed here, but it can be learned: any GUID in qt-config.ini or input/*.ini
+# that equals the launcher's except for those bytes was written by Eden.
+# Learned GUIDs are cached, because the player slot holding one is overwritten
+# as soon as another pad is assigned to it.
+# ----------------------------------------------------------------------------
+_GUID_VALUE_RE = re.compile(r"(?<![A-Za-z0-9_])guid:([0-9A-Fa-f]{32})")
+GUID_CACHE_FILE = "EdenLauncher-guids.json"
+
+
+def _signature(guid):
+    """GUID with the product version (bytes 12-13) blanked out."""
+    return guid[:24] + "0000" + guid[28:]
+
+
+def _cache_path(config_file):
+    return os.path.join(os.path.dirname(config_file), GUID_CACHE_FILE)
+
+
+def _known_guids(config_file, existing, profiles):
+    """
+    {signature: [guid, ...]} - cached GUIDs first, then every SDL GUID found in
+    [Controls] and in the loaded profiles.
+    """
+    known = {}
+    try:
+        with open(_cache_path(config_file), "r", encoding="utf-8") as f:
+            for guid in json.load(f).values():
+                known.setdefault(_signature(guid), []).append(guid.lower())
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        log("WARNING", "Ignoring unreadable GUID cache", e)
+
+    values = list(existing.values())
+    for profile in profiles.values():
+        values.extend(profile.values())
+    for value in values:
+        for guid in _GUID_VALUE_RE.findall(value):
+            guid = guid.lower()
+            sig = _signature(guid)
+            if guid not in known.setdefault(sig, []):
+                known[sig].append(guid)
+
+    return known
+
+
+def _eden_guid(guid, known, config_file):
+    """
+    The GUID Eden uses for this pad: a known one that differs from the
+    launcher's only in the product version, else the launcher's own.
+    """
+    candidates = [g for g in known.get(_signature(guid), []) if g != guid]
+    if not candidates:
+        return guid
+
+    learned = candidates[0]
+    log("INFO", "Using Eden's GUID", f"{guid} -> {learned}")
+    _remember(config_file, learned)
+    return learned
+
+
+def _remember(config_file, guid):
+    path = _cache_path(config_file)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+    except Exception:
+        cache = {}
+    if cache.get(_signature(guid)) == guid:
+        return
+    cache[_signature(guid)] = guid
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        log("WARNING", "Could not save GUID cache", e)
+
+
 def _retarget(value, guid, port):
     """Point every SDL binding in a raw value at the given pad."""
     if "engine:sdl" not in value:
@@ -226,12 +312,14 @@ def write_input(config_file, assignments, hardware, profiles):
         return
     existing = _section_items(lines, SECTION)
 
+    known = _known_guids(config_file, existing, profiles)
+
     # Eden's "port" counts pads sharing a GUID, in enumeration order, across
     # every connected pad - not just the assigned ones
     enumerated = {}
     counters = {}
     for hw in hardware:
-        guid = guid_fix(hw["guid"])
+        guid = _eden_guid(guid_fix(hw["guid"]), known, config_file)
         enumerated[hw["path"]] = (guid, counters.get(guid, 0), hw["name"])
         counters[guid] = counters.get(guid, 0) + 1
 
