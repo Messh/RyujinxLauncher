@@ -130,6 +130,38 @@ Example `RyujinxPath.config` content: `D:\emulators\Ryujinx`
 
 ---
 
+## 🌱 Eden Support (Experimental)
+
+The same launcher is also built for **Eden** (yuzu fork) as `EdenLauncher`.
+Controls, kill combo, hot-plug and profile selection behave exactly as above.
+
+**Setup**
+
+* Place `EdenLauncher.exe` next to `eden.exe` (Linux: next to `Eden*.AppImage`;
+  macOS: next to `eden.app`), or point to it with an `EdenPath.config` file.
+* Open Eden once, go to **Emulation → Configure → Controls**, map **any
+  gamepad** to Player 1 and press **OK**. That mapping becomes the
+  **RL Default** profile and is re-targeted to every pad you assign.
+
+**Where the launcher looks for `qt-config.ini`**
+
+| Mode | Path |
+| :--- | :--- |
+| Portable (Windows) | `<eden.exe dir>\user\config\qt-config.ini` |
+| Portable (macOS) | `<folder holding eden.app>/user/config/qt-config.ini` |
+| Portable (Linux) | `<working dir>/user/config/qt-config.ini` |
+| Windows | `%APPDATA%\eden\config\qt-config.ini` |
+| Linux / macOS | `$XDG_CONFIG_HOME/eden/qt-config.ini` (default `~/.config/eden/`) |
+
+**Profiles** are Eden's own input profiles (`input/*.ini` next to
+`qt-config.ini`), created from Eden's Controls dialog. Keyboard-only profiles
+are hidden. Only Players 1–8 are rewritten; every other setting is preserved.
+
+> **Note:** Use docked mode, and make sure per-game configurations do not
+> override input, otherwise Eden ignores the launcher's assignment.
+
+---
+
 ## 🚧 Testing & Compatibility Status
 
 - **Supported:** Stable **v1.1.1403**, **v1.3.x**, and Canary builds **v1.3.x**.
@@ -205,10 +237,14 @@ ProjectRoot/
 │   │   ├── Process.py              #   launch, Job Object, PDEATHSIG, AppImage
 │   │   ├── Paths.py                #   directory + resource resolution
 │   │   └── Log.py
-│   └── Ryujinx/                    # everything Ryujinx-specific
-│       ├── Ryujinx.py              #   the adapter Core talks to
-│       ├── Version.py              #   version detection (PE / plist / binary scan)
-│       └── Config.py               #   Config.json template, profiles, input writer
+│   ├── Ryujinx/                    # everything Ryujinx-specific
+│   │   ├── Ryujinx.py              #   the adapter Core talks to
+│   │   ├── Version.py              #   version detection (PE / plist / binary scan)
+│   │   └── Config.py               #   Config.json template, profiles, input writer
+│   ├── EdenLauncher.py             # entry point (Eden)
+│   └── Eden/                       # everything Eden-specific
+│       ├── Eden.py                 #   paths, portable mode, SDL detection, AppImage
+│       └── Config.py               #   qt-config.ini [Controls], input profiles
 └── requirements.txt
 ```
 

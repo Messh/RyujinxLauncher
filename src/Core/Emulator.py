@@ -80,7 +80,7 @@ class Emulator:
         raise NotImplementedError
 
     def sdl_dir(self):
-        """Directory containing the SDL shared library."""
+        """Directory containing the SDL shared library, or None for system lookup."""
         return self.dir
 
     # ------------------------------------------------------------------

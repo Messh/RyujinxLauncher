@@ -26,8 +26,9 @@ def load_sdl(backend, lib_dir):
 
     Args:
         backend (str): "SDL2" or "SDL3".
-        lib_dir (str): Directory holding the SDL shared library (normally the
-                       emulator directory, which ships its own copy).
+        lib_dir (str | None): Directory holding the SDL shared library (normally
+                       the emulator directory, which ships its own copy).
+                       None lets the bindings search the system paths.
 
     Returns:
         type: The SDLManager class - the only SDL surface the rest of the
@@ -40,12 +41,14 @@ def load_sdl(backend, lib_dir):
     if backend == "SDL2":
         log("INFO", "SDL backend", "SDL2")
         log("INFO", "SDL2 path", lib_dir)
-        os.environ["PYSDL2_DLL_PATH"] = lib_dir
+        if lib_dir:
+            os.environ["PYSDL2_DLL_PATH"] = lib_dir
         from .ControllerManagerSDL2 import SDLManager
     else:
         log("INFO", "SDL backend", "SDL3")
         log("INFO", "SDL3 path", lib_dir)
-        os.environ["SDL_BINARY_PATH"] = lib_dir
+        if lib_dir:
+            os.environ["SDL_BINARY_PATH"] = lib_dir
         os.environ["SDL_DOWNLOAD_BINARIES"] = "0"       # Disable SDL Lib Download, "1" by default.
         os.environ["SDL_DISABLE_METADATA"] = "1"        # Disable metadata method, "0" by default.
         os.environ["SDL_CHECK_BINARY_VERSION"] = "0"    # Disable binary version checking, "1" by default.
