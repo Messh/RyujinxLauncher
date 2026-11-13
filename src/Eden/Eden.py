@@ -136,8 +136,38 @@ class Eden(Emulator):
         else:
             log("WARNING", "No SDL library next to Eden, using the system one", self.backend)
 
-        # Snapshot before Core.Sdl publishes its SDL_* loader variables
+        # Snapshot before Core.Sdl publishes its SDL_* loader variables, and
+        # before the hints below: Eden sets its own hints and must not inherit ours
         self.env = os.environ.copy()
+
+        # The launcher's SDL must enumerate pads exactly like Eden's, or the
+        # GUIDs it writes (whose last bytes name the Windows driver: 'x' XInput,
+        # 'r' RawInput, 'h' HIDAPI) never match a pad Eden can see
+        for hint, value in self._sdl_hints().items():
+            os.environ[hint] = value
+            log("INFO", "SDL hint", f"{hint}={value}")
+
+    def _sdl_hints(self):
+        """
+        The joystick hints Eden sets in its SDL driver (input_common/drivers/
+        sdl_driver.cpp), following the user's [Controls] settings.
+        """
+        controls = Config.read_controls(self.config_path)
+
+        def enabled(key, default):
+            return controls.get(key, default).strip().lower() == "true"
+
+        hints = {
+            "SDL_JOYSTICK_HIDAPI_XBOX": "0",
+            "SDL_JOYSTICK_HIDAPI_SWITCH": "0" if enabled("enable_procon_driver", "false") else "1",
+            "SDL_JOYSTICK_HIDAPI_JOY_CONS": "0" if enabled("enable_joycon_driver", "true") else "1",
+            "SDL_ACCELEROMETER_AS_JOYSTICK": "0",
+        }
+        # Eden only touches this hint to disable RawInput; when the user turns
+        # raw input on, SDL's own default applies to both processes
+        if not enabled("enable_raw_input", "false"):
+            hints["SDL_JOYSTICK_RAWINPUT"] = "0"
+        return hints
 
     def _find_sdl(self):
         """

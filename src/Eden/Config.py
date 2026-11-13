@@ -97,6 +97,14 @@ def _is_sdl_profile(profile):
     return any("engine:sdl" in v for v in profile.values())
 
 
+def read_controls(config_file):
+    """{key: raw value} of [Controls], or {} if the file is missing/unreadable."""
+    try:
+        return _section_items(_read_lines(config_file), SECTION)
+    except Exception:
+        return {}
+
+
 # ============================================================================
 # TEMPLATE + PROFILES
 # ============================================================================
@@ -235,7 +243,7 @@ def write_input(config_file, assignments, hardware, profiles):
             continue
         guid, port, name = matched
         prefix = f"player_{player}_"
-        log("INFO", f"Saving -> Player {player+1} | {name} | Profile: {assignment['profile_key']} | port {port}")
+        log("INFO", f"Saving -> Player {player+1} | {name} | Profile: {assignment['profile_key']} | port {port} | guid {guid}")
 
         updates[prefix + "connected"] = "true"
         updates[prefix + "type"] = PRO_CONTROLLER
