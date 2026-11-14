@@ -28,7 +28,16 @@ def run(emulator):
     Args:
         emulator (Emulator): A fresh instance from an emulator package.
     """
+    import os
     import sys
+
+    # 0. A --noconsole build has no stdout/stderr (both None). Libraries that
+    #    print (PySDL3's logger does) would crash the launcher with
+    #    "'NoneType' object has no attribute 'write'" - give them a sink.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
 
     # 1. Where is the emulator?
     emulator.locate(base_dir())

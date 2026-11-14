@@ -17,7 +17,7 @@ Ordering enforced by Core/Bootstrap.py:
 
 import os
 
-from .Log import log
+from .Log import log, fatal
 
 
 def load_sdl(backend, lib_dir):
@@ -55,5 +55,19 @@ def load_sdl(backend, lib_dir):
         os.environ["SDL_IGNORE_MISSING_FUNCTIONS"] = "1" # Disable missing function warnings, "1" by default.
         os.environ["SDL_FIND_BINARIES"] = "1"           # Search system libraries, "1" by default.
         from .ControllerManagerSDL3 import SDLManager
+
+        # With SDL_IGNORE_MISSING_FUNCTIONS, PySDL3 replaces every function of
+        # a library it could not load with a stub, so a missing SDL3 would only
+        # surface later as a cryptic "unimplemented function" - catch it here
+        import sdl3
+        if sdl3.SDL_GET_BINARY("SDL3") is None:
+            fatal(
+                "SDL3 Not Found",
+                "Could not load the SDL3 library.\n\n"
+                f"Searched in: {lib_dir or 'system paths'}\n\n"
+                "Place SDL3.dll (libSDL3.so / libSDL3.dylib) next to the "
+                "emulator, or install SDL3 on the system.",
+                "SDL3 library not found", lib_dir
+            )
 
     return SDLManager
