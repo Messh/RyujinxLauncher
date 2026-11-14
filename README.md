@@ -162,6 +162,34 @@ are hidden. Only Players 1–8 are rewritten; every other setting is preserved.
 
 ---
 
+## 🌐 Ryujinx-Nextendo Support
+
+[Ryujinx-Nextendo](https://git.nextendo.network/NextendoNetwork/Ryujinx-Nextendo)
+gets its own, fully independent launcher, `NextendoLauncher`. It shares only
+the emulator-agnostic `Core/` with RyujinxLauncher. Use each launcher only
+with its own emulator: RyujinxLauncher for official Ryujinx, NextendoLauncher
+for Nextendo. Controls, kill combo, hot-plug and profile selection behave the
+same in both.
+
+**Setup**
+
+* Keep Nextendo in **its own folder**, separate from official Ryujinx (both
+  ship as `Ryujinx.exe`).
+* Place `NextendoLauncher.exe` next to Nextendo's `Ryujinx.exe`, or point to
+  it with a `NextendoPath.config` file.
+
+**Data folder: always portable**
+
+Nextendo writes config version 76, which official Ryujinx cannot read. If both
+share a data folder, official Ryujinx renames the file to
+`(invalid) Config.json.<date>.json` and resets every setting.
+
+NextendoLauncher **never uses `%APPDATA%\Ryujinx`**. It uses the folder given
+with `-r` / `--root-data-dir`, otherwise `<Nextendo folder>\portable\`, which
+it creates if missing, so Nextendo itself also starts in portable mode.
+
+---
+
 ## 🚧 Testing & Compatibility Status
 
 - **Supported:** Stable **v1.1.1403**, **v1.3.x**, and Canary builds **v1.3.x**.

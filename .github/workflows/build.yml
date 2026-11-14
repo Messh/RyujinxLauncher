@@ -52,6 +52,8 @@ jobs:
         if errorlevel 1 exit /b 1
         call .\build.bat Eden
         if errorlevel 1 exit /b 1
+        call .\build.bat Nextendo
+        if errorlevel 1 exit /b 1
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
@@ -60,6 +62,7 @@ jobs:
       run: |
         ./build.sh Ryujinx
         ./build.sh Eden
+        ./build.sh Nextendo
 
     # Upload the Raw Binaries
     # GitHub Actions will automatically ZIP each into '<name>.zip'
@@ -74,6 +77,12 @@ jobs:
       with:
         name: EdenLauncher-${{ matrix.platform }}
         path: dist/EdenLauncher${{ matrix.ext }}
+
+    - name: Upload Nextendo Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: NextendoLauncher-${{ matrix.platform }}
+        path: dist/NextendoLauncher${{ matrix.ext }}
 
   # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
   # and publishes them as a GitHub Release named after the tag.
