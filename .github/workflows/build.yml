@@ -21,9 +21,15 @@ jobs:
             ext: .exe
             platform: Windows
 
-          - os: ubuntu-latest
-            ext: ''
-            platform: Linux
+          # Linux disabled while testing on Windows - uncomment to build it again
+          # - os: ubuntu-latest
+          #   ext: ''
+          #   platform: Linux
+
+          # macOS disabled - uncomment to build it again
+          # - os: macos-latest
+          #   ext: ''
+          #   platform: MacOS
 
     steps:
     - uses: actions/checkout@v4
@@ -63,7 +69,7 @@ jobs:
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
-    - name: Build with build.sh (Linux)
+    - name: Build with build.sh (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
         ./build.sh Ryujinx
@@ -127,7 +133,7 @@ jobs:
       with:
         path: artifacts
 
-    # Windows .exe files are attached as-is. Linux binaries are zipped
+    # Windows .exe files are attached as-is. Linux/macOS binaries are zipped
     # after restoring the executable bit, which artifact downloads drop.
     - name: Package release assets
       run: |
