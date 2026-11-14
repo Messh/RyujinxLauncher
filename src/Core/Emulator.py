@@ -37,6 +37,7 @@ class Emulator:
     """Base class - subclass this in <Name>/<Name>.py."""
 
     name = "Emulator"   # branding: window title, "<Name>Path.config", log filename
+    max_players = 8     # player slots the emulator supports (1-8)
 
     def __init__(self):
         self.dir = None

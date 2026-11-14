@@ -160,7 +160,7 @@ class LauncherUi:
         close_alert()
     """
 
-    def __init__(self, root, emulator_name, launch_label, on_rebuild):
+    def __init__(self, root, emulator_name, launch_label, on_rebuild, slot_count=8):
         """
         Args:
             root          (ctk.CTk): The root window.
@@ -168,11 +168,13 @@ class LauncherUi:
             launch_label  (str):     What START launches - "GAME" or "RYUJINX".
             on_rebuild    (callable): Called after a resolution change rebuilds
                                       the widgets, so App can repaint the grid.
+            slot_count    (int):     Player cards to show (emulator's maximum).
         """
         self.root = root
         self.emulator_name = emulator_name
         self.launch_label = launch_label
         self.on_rebuild = on_rebuild
+        self.slot_count = slot_count
 
         self.alert_mode = None      # Current alert type (if any)
         self.alert_frame = None     # Alert dialog container
@@ -201,8 +203,8 @@ class LauncherUi:
 
     def _load_icon(self):
         """Window/taskbar icon: .ico on Windows, .png elsewhere."""
-        ico_path = resource_path(os.path.join("assets", "RyujinxLauncherIcon.ico"))
-        png_path = resource_path(os.path.join("assets", "RyujinxLauncherPNG.png"))
+        ico_path = resource_path(os.path.join("assets", "LauncherIcon.ico"))
+        png_path = resource_path(os.path.join("assets", "LauncherIcon.png"))
 
         # Windows prefers .ico for the taskbar
         if os.path.exists(ico_path):
@@ -314,12 +316,12 @@ class LauncherUi:
             )
         )
 
-        # Player grid: 8 slots in 4x2 layout
+        # Player grid: up to 8 slots, two per row
         self.grid_frame = ctk.CTkFrame(self.main_container, fg_color=COLOR['BG_DARK'], corner_radius=0)
         self.grid_frame.pack()
 
         self.slot_cards = []
-        for i in range(8):
+        for i in range(self.slot_count):
             row = i // 2
             col = i % 2
 
@@ -441,12 +443,12 @@ class LauncherUi:
 
         Args:
             slots (list[dict]): One entry per assigned controller, in player
-                order, at most 8:
+                order, at most slot_count:
                     {"name": str, "color": "#RRGGBB",
                      "profile": str, "editing": bool}
                 Remaining cards render as empty slots.
         """
-        for i in range(8):
+        for i in range(self.slot_count):
             card, lbl_num, lbl_status, lbl_disc, lbl_profile = self.slot_cards[i]
 
             if i < len(slots):

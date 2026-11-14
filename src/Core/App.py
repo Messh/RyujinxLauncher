@@ -45,7 +45,9 @@ class LauncherApp:
         # Frontend arguments (Playnite, LaunchBox, Moonlight...) mean we are
         # launching a specific game rather than the emulator's own UI
         launch_label = "GAME" if len(sys.argv) > 1 else emulator.name.upper()
-        self.ui = LauncherUi(root, emulator.name, launch_label, self.refresh_grid)
+        self.max_players = max(1, min(MAX_PLAYERS, emulator.max_players))
+        self.ui = LauncherUi(root, emulator.name, launch_label, self.refresh_grid,
+                             self.max_players)
 
         # Keyboard shortcuts for accessibility
         self.root.bind("<Return>", lambda e: self.handle_enter_key())
@@ -345,7 +347,7 @@ class LauncherApp:
                 return
 
         # Enforce player maximum
-        if len(self.assignments) >= MAX_PLAYERS:
+        if len(self.assignments) >= self.max_players:
             return
 
         # Restore previously selected profile for this HID, default to the first one

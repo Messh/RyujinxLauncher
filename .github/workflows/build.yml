@@ -54,6 +54,12 @@ jobs:
         if errorlevel 1 exit /b 1
         call .\build.bat Nextendo
         if errorlevel 1 exit /b 1
+        call .\build.bat Citron
+        if errorlevel 1 exit /b 1
+        call .\build.bat CitronNextendo
+        if errorlevel 1 exit /b 1
+        call .\build.bat Azahar
+        if errorlevel 1 exit /b 1
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
@@ -63,6 +69,9 @@ jobs:
         ./build.sh Ryujinx
         ./build.sh Eden
         ./build.sh Nextendo
+        ./build.sh Citron
+        ./build.sh CitronNextendo
+        ./build.sh Azahar
 
     # Upload the Raw Binaries
     # GitHub Actions will automatically ZIP each into '<name>.zip'
@@ -83,6 +92,24 @@ jobs:
       with:
         name: NextendoLauncher-${{ matrix.platform }}
         path: dist/NextendoLauncher${{ matrix.ext }}
+
+    - name: Upload Citron Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: CitronLauncher-${{ matrix.platform }}
+        path: dist/CitronLauncher${{ matrix.ext }}
+
+    - name: Upload CitronNextendo Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: CitronNextendoLauncher-${{ matrix.platform }}
+        path: dist/CitronNextendoLauncher${{ matrix.ext }}
+
+    - name: Upload Azahar Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: AzaharLauncher-${{ matrix.platform }}
+        path: dist/AzaharLauncher${{ matrix.ext }}
 
   # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
   # and publishes them as a GitHub Release named after the tag.

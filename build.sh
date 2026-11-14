@@ -86,17 +86,17 @@ case "$UNAME" in
     Darwin)
         OUTPUT="dist/${NAME}Launcher"
         DATA_SEP=":"
-        ICON_CANDIDATES=("assets/${NAME}LauncherIcon.icns" "assets/RyujinxLauncherIcon.icns")
+        ICON_CANDIDATES=("assets/${NAME}LauncherIcon.icns" "assets/LauncherIcon.icns")
         ;;
     MINGW*|MSYS*|CYGWIN*)
         OUTPUT="dist/${NAME}Launcher.exe"
         DATA_SEP=";"
-        ICON_CANDIDATES=("assets/${NAME}LauncherIcon.ico" "assets/RyujinxLauncherIcon.ico")
+        ICON_CANDIDATES=("assets/${NAME}LauncherIcon.ico" "assets/LauncherIcon.ico")
         ;;
     *)
         OUTPUT="dist/${NAME}Launcher"
         DATA_SEP=":"
-        ICON_CANDIDATES=("assets/${NAME}LauncherPNG.png" "assets/RyujinxLauncherPNG.png")
+        ICON_CANDIDATES=("assets/${NAME}LauncherIcon.png" "assets/LauncherIcon.png")
         ;;
 esac
 
@@ -166,7 +166,7 @@ rm -f  "${NAME}Launcher.spec"
 # ----------------------------------------------------------------------------
 # 3. Build
 # ----------------------------------------------------------------------------
-# Per-launcher icon if one exists, otherwise fall back to the Ryujinx icon
+# Per-launcher icon if one exists, otherwise the generic launcher icon
 ICON_ARGS=()
 for icon in "${ICON_CANDIDATES[@]}"; do
     if [ -f "$icon" ]; then

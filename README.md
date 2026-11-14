@@ -1,4 +1,4 @@
-# <img src="assets/RyujinxLauncherPNG.png" alt="Ryujinx Launcher Logo" width="24"> Ryujinx Launcher
+# <img src="assets/LauncherIcon.png" alt="Launcher icon" width="24"> Ryujinx Launcher
 
 ***Version 1.2.0***
 
@@ -190,6 +190,47 @@ it creates if missing, so Nextendo itself also starts in portable mode.
 
 ---
 
+## 🧩 Citron, Citron-Nextendo and Azahar Support
+
+Each emulator has its own, fully independent launcher. They share only the
+emulator-agnostic `Core/`; use each one only with its own emulator.
+
+| Launcher | Emulator | Binary | Players | Config the launcher edits |
+| :--- | :--- | :--- | :--- | :--- |
+| `CitronLauncher` | [Citron nightly](https://github.com/citron-neo/CI) | `citron.exe` | 1-8 | `user\config\qt-config.ini` |
+| `CitronNextendoLauncher` | [Citron-Nextendo](https://git.nextendo.network/NextendoNetwork/citron-nextendo) | `citron.exe` | 1-8 | `user\config\qt-config.ini` |
+| `AzaharLauncher` | [AzaharPlus](https://github.com/AzaharPlus/AzaharPlus) | `azahar.exe` | 1 | `user\config\qt-config.ini` |
+
+**Setup**
+
+* Keep every emulator in **its own folder**. Both Citron builds ship as
+  `citron.exe`.
+* Place the launcher next to the emulator binary, or point to it with a
+  `<Name>Path.config` file (`CitronPath.config`, `CitronNextendoPath.config`,
+  `AzaharPath.config`).
+* Open the emulator once and map any gamepad in its Controls dialog: that
+  mapping is what the launcher re-targets to the pad you assign.
+  * **Citron:** map Player 1 and press OK. That becomes the **RL Default**
+    profile; profiles saved in `user\config\input\` are listed too.
+  * **Azahar:** the launcher lists Azahar's own input profiles that use a
+    gamepad. The one you pick becomes the active profile and is pointed at
+    the assigned pad.
+
+**Data folder: always portable**
+
+These launchers **never use `%APPDATA%`**. Without a `user\` folder next to
+the binary, both Citron builds would share `%APPDATA%\citron` (and the
+Citron-Nextendo zip ships without one). Each launcher creates `user\` when it
+is missing, so the emulator itself also starts in portable mode.
+
+**Azahar needs `SDL2.dll`:** AzaharPlus has SDL built in, so the launcher
+needs its own copy to read controllers. Place `SDL2.dll` (from the
+`SDL2-<version>-win32-x64.zip` release at
+[libsdl-org/SDL](https://github.com/libsdl-org/SDL/releases)) next to
+`azahar.exe` or next to `AzaharLauncher.exe`.
+
+---
+
 ## 🚧 Testing & Compatibility Status
 
 - **Supported:** Stable **v1.1.1403**, **v1.3.x**, and Canary builds **v1.3.x**.
@@ -258,8 +299,9 @@ Ensure your source folder looks like this before building:
 ```text
 ProjectRoot/
 ├── assets/
-│   ├── RyujinxLauncherIcon.ico
-│   └── RyujinxLauncherPNG.png
+│   ├── LauncherIcon.ico            # generic icon, used by every launcher
+│   ├── LauncherIcon.icns
+│   └── LauncherIcon.png
 ├── src/
 │   ├── RyujinxLauncher.py          # entry point
 │   ├── Core/                       # emulator-agnostic engine
@@ -317,7 +359,8 @@ available in `src/`.
 Notes:
 
 * The icon is picked automatically per platform, and an emulator-specific icon
-  (`assets/<Name>LauncherIcon.ico`) is used if one exists.
+  (`assets/<Name>LauncherIcon.ico`) is used if one exists; otherwise every
+  launcher gets the generic `assets/LauncherIcon.ico`.
 * If `<Name>Path.config` sits next to the script it is copied into `dist/`, since
   the built executable looks for it beside itself.
 * Set `VENV_DIR` to build against an environment somewhere other than `.venv`.
@@ -334,15 +377,15 @@ terminal to create a standalone EXE/BIN/APP with bundled assets:
 
 ### Windows
 
-`pyinstaller --noconsole --onefile --name "RyujinxLauncher" --icon="assets\RyujinxLauncherIcon.ico" --add-data "assets;assets" --collect-all customtkinter --paths src --hidden-import Core.ControllerManagerSDL2 --hidden-import Core.ControllerManagerSDL3 src\RyujinxLauncher.py`
+`pyinstaller --noconsole --onefile --name "RyujinxLauncher" --icon="assets\LauncherIcon.ico" --add-data "assets;assets" --collect-all customtkinter --paths src --hidden-import Core.ControllerManagerSDL2 --hidden-import Core.ControllerManagerSDL3 src\RyujinxLauncher.py`
 
 ### MacOS
 
-`pyinstaller --noconsole --onefile --name "RyujinxLauncher" --icon="assets/RyujinxLauncherIcon.ico" --add-data "assets:assets" --collect-all customtkinter --paths src --hidden-import Core.ControllerManagerSDL2 --hidden-import Core.ControllerManagerSDL3 src/RyujinxLauncher.py`
+`pyinstaller --noconsole --onefile --name "RyujinxLauncher" --icon="assets/LauncherIcon.icns" --add-data "assets:assets" --collect-all customtkinter --paths src --hidden-import Core.ControllerManagerSDL2 --hidden-import Core.ControllerManagerSDL3 src/RyujinxLauncher.py`
 
 ### Linux
 
-`pyinstaller --noconsole --onefile --name "RyujinxLauncher" --icon="assets/RyujinxLauncherPNG.png" --add-data "assets:assets" --collect-all customtkinter --paths src --hidden-import Core.ControllerManagerSDL2 --hidden-import Core.ControllerManagerSDL3 src/RyujinxLauncher.py`
+`pyinstaller --noconsole --onefile --name "RyujinxLauncher" --icon="assets/LauncherIcon.png" --add-data "assets:assets" --collect-all customtkinter --paths src --hidden-import Core.ControllerManagerSDL2 --hidden-import Core.ControllerManagerSDL3 src/RyujinxLauncher.py`
 
 The resulting `RyujinxLauncher` executable will be in the `dist/` folder.
 

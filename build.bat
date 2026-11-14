@@ -76,9 +76,9 @@ if exist "%NAME%Launcher.spec"      del /q "%NAME%Launcher.spec"
 rem ---------------------------------------------------------------------------
 rem  3. Build
 rem ---------------------------------------------------------------------------
-rem Per-launcher icon if one exists, otherwise fall back to the Ryujinx icon
+rem Per-launcher icon if one exists, otherwise the generic launcher icon
 set "ICON=assets\%NAME%LauncherIcon.ico"
-if not exist "%ICON%" set "ICON=assets\RyujinxLauncherIcon.ico"
+if not exist "%ICON%" set "ICON=assets\LauncherIcon.ico"
 set "ICONARG="
 if exist "%ICON%" set "ICONARG=--icon=%ICON%"
 
