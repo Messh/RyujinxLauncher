@@ -40,6 +40,19 @@ XINPUT_SLOTS = 4
 XINPUT_DRIVER = "78"          # SDL GUID byte 14 = 'x'
 DEFAULT_PROFILE = "Default"
 
+# Speed hotkeys on player 1's pad (Core/KeyMap.cpp virtual keys):
+#   Select + R2 -> "Fast-forward" (VIRTKEY_FASTFORWARD, while held)
+#   Select + L2 -> "Rewind"       (VIRTKEY_REWIND, one saved step per press;
+#                                  needs Settings > System > Rewind snapshot interval)
+# NKCODE_BUTTON_SELECT = 109; triggers are axes JOYSTICK_AXIS_LTRIGGER (17) and
+# JOYSTICK_AXIS_RTRIGGER (18), stored as AXIS_BIND_NKCODE_START (4000) + axis * 2
+# (+0 = positive). A combo joins its inputs with ':'; ',' separates alternatives.
+SELECT_CODE = 109
+LTRIGGER_CODE = 4000 + 17 * 2
+RTRIGGER_CODE = 4000 + 18 * 2
+SPEED_HOTKEYS = (("Fast-forward", RTRIGGER_CODE), ("Rewind", LTRIGGER_CODE))
+_COMBO_RE = re.compile(rf"^2[0-3]-{SELECT_CODE}:2[0-3]-({LTRIGGER_CODE}|{RTRIGGER_CODE})$")
+
 # "<device>-<code>" tokens whose device is an XInput slot
 _XINPUT_TOKEN_RE = re.compile(r"(?<![\d-])(2[0-3])-(\d+)")
 _SECTION_RE = re.compile(r"^\s*\[(.+)\]\s*$")
@@ -147,6 +160,21 @@ class PPSSPP(Emulator):
     def load_profiles(self):
         return {DEFAULT_PROFILE: None}
 
+    @staticmethod
+    def _set_combo(lines, key, combo):
+        """Add `combo` to `key` in [ControlMapping], keeping the user's own."""
+        start, end = _section_range(lines, SECTION)
+        for i in range(start, end):
+            if "=" in lines[i] and lines[i].split("=", 1)[0].strip() == key:
+                values = [v.strip() for v in lines[i].split("=", 1)[1].split(",") if v.strip()]
+                values = [v for v in values if not _COMBO_RE.match(v)] + [combo]
+                lines[i] = f"{key} = {','.join(values)}"
+                return
+        insert_at = end
+        while insert_at > start and not lines[insert_at - 1].strip():
+            insert_at -= 1
+        lines.insert(insert_at, f"{key} = {combo}")
+
     def write_input_config(self, assignments, hardware):
         if not assignments:
             return
@@ -162,10 +190,11 @@ class PPSSPP(Emulator):
         log("INFO", f"Saving -> Player 1 | {hw['name']} | XInput slot {slot} | device {device}")
 
         if not os.path.exists(self.config_path):
-            if slot == 0:
-                return  # PPSSPP's built-in default already uses XInput slot 0
-            log("WARNING", "controls.ini missing; open PPSSPP > Settings > Controls once",
-                self.config_path)
+            # Without controls.ini PPSSPP uses its defaults (XInput slot 0).
+            # Creating it with only a few keys would drop the other defaults.
+            log("WARNING", "controls.ini missing; open PPSSPP > Settings > Controls and "
+                           "change any mapping once so the launcher can set the pad and "
+                           "the Select + R2 / L2 hotkeys", self.config_path)
             return
 
         try:
@@ -185,6 +214,11 @@ class PPSSPP(Emulator):
                 lines[i] = new
                 changed += 1
         log("INFO", "XInput mappings moved to device", f"{device} ({changed} lines)")
+
+        for key, trigger in SPEED_HOTKEYS:
+            combo = f"{device}-{SELECT_CODE}:{device}-{trigger}"
+            self._set_combo(lines, key, combo)
+            log("INFO", "Speed hotkey", f"{key} += {combo}")
 
         try:
             _write_lines(self.config_path, lines)

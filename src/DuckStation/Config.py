@@ -301,6 +301,53 @@ def sdl_player_ids(hardware):
 
 
 # ============================================================================
+# SPEED HOTKEYS (Select + R2 / Select + L2 on player 1's pad)
+# ============================================================================
+HOTKEYS_SECTION = "Hotkeys"
+FAST_FORWARD_HOTKEY = "FastForward"     # Select + R2, fast-forward while held
+# Select + L2, rewinds while held (needs Settings > Emulation > Rewind on)
+SLOW_HOTKEY = "Rewind"
+
+# A chord this launcher wrote before, on any device
+_CHORD_RE = re.compile(r"^(SDL|XInput)-[^/\s&]+/Back\s*&\s*(SDL|XInput)-[^/\s&]+/\+(Right|Left)Trigger$")
+
+
+def _set_hotkey(lines, hotkey, chord):
+    """
+    Bind `hotkey` to `chord` in [Hotkeys].
+
+    The emulator reads every "<hotkey> = ..." line of [Hotkeys] as one more
+    binding, so the user's own bindings (e.g. Keyboard/Tab) are kept; only a
+    Select + trigger chord this launcher wrote for another pad is replaced.
+    """
+    bounds = _section_bounds(lines, HOTKEYS_SECTION)
+    if not bounds:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines += [f"[{HOTKEYS_SECTION}]", f"{hotkey} = {chord}"]
+        return
+
+    start, end = bounds
+    for i in range(end - 1, start - 1, -1):
+        if "=" in lines[i]:
+            key, value = (p.strip() for p in lines[i].split("=", 1))
+            if key == hotkey and _CHORD_RE.match(value):
+                del lines[i]
+                end -= 1
+    insert_at = end
+    while insert_at > start and not lines[insert_at - 1].strip():
+        insert_at -= 1
+    lines.insert(insert_at, f"{hotkey} = {chord}")
+
+
+def _set_speed_hotkeys(lines, device):
+    for hotkey, trigger in ((FAST_FORWARD_HOTKEY, "RightTrigger"), (SLOW_HOTKEY, "LeftTrigger")):
+        chord = f"{device}/Back & {device}/+{trigger}"
+        _set_hotkey(lines, hotkey, chord)
+        log("INFO", "Speed hotkey", f"{hotkey} = {chord}")
+
+
+# ============================================================================
 # WRITING THE LAUNCH CONFIG
 # ============================================================================
 def write_input(config_file, assignments, hardware, profiles):
@@ -342,6 +389,8 @@ def write_input(config_file, assignments, hardware, profiles):
         for key, value in profile.items():
             updates[key] = _retarget(value, device)
         _apply(lines, section, updates)
+        if not used:
+            _set_speed_hotkeys(lines, device)
         used.add(pad)
 
     # Every other pad is unplugged, so no stale binding drives a second player

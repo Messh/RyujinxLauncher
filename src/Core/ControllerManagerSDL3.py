@@ -158,6 +158,41 @@ class SDLManager:
         sdl3.SDL_GUIDToString(guid, buf, size)
 
     @staticmethod
+    def get_raw_bindings(ctrl):
+        """
+        Joystick-level inputs behind Back and the two triggers, for emulators
+        that read raw SDL joystick buttons/axes instead of the gamepad API.
+        Returns {"back"|"lefttrigger"|"righttrigger": ("button", n) |
+        ("axis", n) | ("hat", n, mask) | None}.
+        """
+        result = {"back": None, "lefttrigger": None, "righttrigger": None}
+        wanted = {
+            (sdl3.SDL_GAMEPAD_BINDTYPE_BUTTON, int(sdl3.SDL_GAMEPAD_BUTTON_BACK)): "back",
+            (sdl3.SDL_GAMEPAD_BINDTYPE_AXIS, int(sdl3.SDL_GAMEPAD_AXIS_LEFT_TRIGGER)): "lefttrigger",
+            (sdl3.SDL_GAMEPAD_BINDTYPE_AXIS, int(sdl3.SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)): "righttrigger",
+        }
+        count = ctypes.c_int(0)
+        binds = sdl3.SDL_GetGamepadBindings(ctrl, ctypes.byref(count))
+        if not binds:
+            return result
+        try:
+            for i in range(count.value):
+                b = binds[i].contents
+                out = b.output.button if b.output_type == sdl3.SDL_GAMEPAD_BINDTYPE_BUTTON else b.output.axis.axis
+                name = wanted.get((b.output_type, int(out)))
+                if not name or result[name]:
+                    continue
+                if b.input_type == sdl3.SDL_GAMEPAD_BINDTYPE_BUTTON:
+                    result[name] = ("button", int(b.input.button))
+                elif b.input_type == sdl3.SDL_GAMEPAD_BINDTYPE_AXIS:
+                    result[name] = ("axis", int(b.input.axis.axis))
+                elif b.input_type == sdl3.SDL_GAMEPAD_BINDTYPE_HAT:
+                    result[name] = ("hat", int(b.input.hat.hat), int(b.input.hat.hat_mask))
+        finally:
+            sdl3.SDL_free(binds)
+        return result
+
+    @staticmethod
     def get_button_info(event):
         """Returns (button, which) from a gamepad button event."""
         return event.gbutton.button, event.gbutton.which

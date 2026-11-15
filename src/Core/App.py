@@ -490,12 +490,15 @@ class LauncherApp:
 
         Returns:
             list[dict]: [{"path", "guid", "name", "player_index",
-                        "joystick_index"}, ...] in enumeration order.
+                        "joystick_index", "raw_bindings"}, ...] in enumeration order.
                         "guid" is the raw 32-char SDL hex string; turning it
                         into an emulator-specific id is the emulator's job.
                         "player_index" is SDL's player index (-1 if none).
                         "joystick_index" is the position among ALL joysticks,
                         gamepad or not (SDL2's device index).
+                        "raw_bindings" maps "back"/"lefttrigger"/"righttrigger"
+                        to the joystick-level ("button", n) / ("axis", n) /
+                        ("hat", n, mask) behind it, or None.
         """
         sdl = self.sdl
 
@@ -536,12 +539,19 @@ class LauncherApp:
             except Exception:
                 player_index = -1
 
+            try:
+                raw_bindings = sdl.get_raw_bindings(ctrl)
+            except Exception as e:
+                log("WARNING", "Could not read raw joystick bindings", e)
+                raw_bindings = {}
+
             hardware.append({
                 "path": path,
                 "guid": psz_guid.value.decode(),
                 "name": sdl.SDL_GameControllerName(ctrl).decode(),
                 "player_index": player_index,
                 "joystick_index": joystick_index,
+                "raw_bindings": raw_bindings,
             })
 
             sdl.SDL_GameControllerClose(ctrl)

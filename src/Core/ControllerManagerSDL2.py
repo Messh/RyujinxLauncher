@@ -135,6 +135,32 @@ class SDLManager:
         return list(range(sdl2.SDL_NumJoysticks()))
 
     @staticmethod
+    def get_raw_bindings(ctrl):
+        """
+        Joystick-level inputs behind Back and the two triggers, for emulators
+        that read raw SDL joystick buttons/axes instead of the gamepad API.
+        Returns {"back"|"lefttrigger"|"righttrigger": ("button", n) |
+        ("axis", n) | ("hat", n, mask) | None}.
+        """
+        def convert(bind):
+            if bind.bindType == sdl2.SDL_CONTROLLER_BINDTYPE_BUTTON:
+                return ("button", int(bind.value.button))
+            if bind.bindType == sdl2.SDL_CONTROLLER_BINDTYPE_AXIS:
+                return ("axis", int(bind.value.axis))
+            if bind.bindType == sdl2.SDL_CONTROLLER_BINDTYPE_HAT:
+                return ("hat", int(bind.value.hat.hat), int(bind.value.hat.hat_mask))
+            return None
+
+        return {
+            "back": convert(sdl2.SDL_GameControllerGetBindForButton(
+                ctrl, sdl2.SDL_CONTROLLER_BUTTON_BACK)),
+            "lefttrigger": convert(sdl2.SDL_GameControllerGetBindForAxis(
+                ctrl, sdl2.SDL_CONTROLLER_AXIS_TRIGGERLEFT)),
+            "righttrigger": convert(sdl2.SDL_GameControllerGetBindForAxis(
+                ctrl, sdl2.SDL_CONTROLLER_AXIS_TRIGGERRIGHT)),
+        }
+
+    @staticmethod
     def get_button_info(event):
         """Returns (button, which) from a gamepad button event."""
         return event.cbutton.button, event.cbutton.which

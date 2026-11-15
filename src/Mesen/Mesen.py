@@ -39,6 +39,16 @@ XINPUT_BASE = 0x1000
 XINPUT_SLOTS = 4
 XINPUT_DRIVER = "78"          # SDL GUID byte 14 = 'x'
 
+# Speed shortcuts on player 1's pad, both while held (EmulatorShortcut):
+#   Select + R2 -> FastForward      Select + L2 -> Rewind
+# XInput button numbers (Windows/WindowsKeyManager.cpp buttonNames, 1-based):
+# Back = 6 (XINPUT_GAMEPAD_BACK = 1 << 5), L2 = 17, R2 = 18 (the triggers).
+# Preferences.ShortcutKeys holds two alternative combos per shortcut
+# (KeyCombination / KeyCombination2). The first one, normally a keyboard key,
+# is kept; the second one becomes Select + trigger.
+BACK_BUTTON = 6
+SPEED_SHORTCUTS = (("FastForward", 18), ("Rewind", 17))
+
 # Config paths (console, port) per player
 PLAYER_PORTS = [
     [("Nes", "Port1"), ("Snes", "Port1"), ("Sms", "Port1"), ("Cv", "Port1"),
@@ -173,6 +183,25 @@ class Mesen(Emulator):
             )
         return {DEFAULT_PROFILE: None}
 
+    @staticmethod
+    def _set_speed_shortcuts(config, slot):
+        """Second combo of FastForward / Rewind = Select + R2 / L2 on player 1's pad."""
+        shortcuts = (config.get("Preferences") or {}).get("ShortcutKeys")
+        if not isinstance(shortcuts, list):
+            log("WARNING", "No Preferences.ShortcutKeys in settings.json yet; "
+                           "start Mesen once to create it", "speed shortcuts not set")
+            return
+        base = XINPUT_BASE + slot * 0x100
+        for name, trigger in SPEED_SHORTCUTS:
+            entry = next((e for e in shortcuts
+                          if isinstance(e, dict) and e.get("Shortcut") == name), None)
+            if entry is None:
+                entry = {"Shortcut": name, "KeyCombination": {"Key1": 0, "Key2": 0, "Key3": 0}}
+                shortcuts.append(entry)
+            entry["KeyCombination2"] = {"Key1": base + BACK_BUTTON, "Key2": base + trigger, "Key3": 0}
+            log("INFO", f"Speed shortcut (hold): {name} = Select + {'R2' if trigger == 18 else 'L2'} "
+                        "on XInput slot", str(slot))
+
     def write_input_config(self, assignments, hardware):
         config = self._load()
         if config is None:
@@ -206,6 +235,9 @@ class Mesen(Emulator):
             moved = _retarget(config, p, lambda old: spare if old in taken else None)
             if moved:
                 log("INFO", f"Player {p+1} unassigned: moved off assigned pads to slot", str(spare))
+
+        if 0 in slots:
+            self._set_speed_shortcuts(config, slots[0])
 
         try:
             with open(self.config_path, "w", encoding="utf-8") as f:

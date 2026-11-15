@@ -311,6 +311,35 @@ None of them ever uses `%APPDATA%` or `Documents`.
 
 ---
 
+## ⏩ Speed Hotkeys (Select + R2 / Select + L2)
+
+At every launch the launcher binds speed hotkeys on Player 1's pad. Your own
+bindings (e.g. `Tab`) are kept.
+
+- **Combo-capable emulators:** Select + R2 = fast-forward (hold),
+  Select + L2 = rewind, or slow motion where there is no rewind.
+- **Single-input emulators:** R2 = fast-forward (hold), L2 = rewind / slow motion.
+
+| Emulator | Select / R2 | Select / L2 | Setting written |
+| :--- | :--- | :--- | :--- |
+| PCSX2 | Fast-forward (hold) | Slow motion (toggle, no rewind) | `[Hotkeys] HoldTurbo`, `ToggleSlowMotion` |
+| DuckStation | Fast-forward (hold) | Rewind (hold) ¹ | `[Hotkeys] FastForward`, `Rewind` |
+| PPSSPP | Fast-forward (hold) | Rewind (one step per press) ² | `[ControlMapping] Fast-forward`, `Rewind` (needs an existing `controls.ini`) |
+| Mesen | Fast-forward (hold) | Rewind (hold) | `Preferences.ShortcutKeys`, second key combination |
+| melonDS | R2: fast-forward (hold) | L2: slow motion (hold) | `[Instance0.Joystick] HK_FastForward`, `HK_SlowMo` (skipped if the trigger is used by a DS button) |
+
+¹ Enable *Settings > Emulation > Rewind*. ² Set *Settings > System > Rewind snapshot interval*.
+
+- **mGBA:** not written. Its built-in profiles for XInput and DualShock 4 pads
+  already use R2 = fast-forward and L2 = rewind (held).
+- **Not possible:** Eden, Citron and Azahar only fire controller hotkeys once
+  per press. gopher64 already has its own (Select + Z). Ryujinx, xemu and Cemu
+  have no controller speed hotkeys.
+
+Select and the triggers still reach the game while a combo is held.
+
+---
+
 ## 🚧 Testing & Compatibility Status
 
 - **Supported:** Stable **v1.1.1403**, **v1.3.x**, and Canary builds **v1.3.x**.
