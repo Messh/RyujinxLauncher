@@ -274,6 +274,43 @@ needs the `SDL2.dll` next to `melonDS.exe` (or next to the launcher).
 
 ---
 
+## 🎲 Cemu, Mesen, gopher64, mGBA and PPSSPP Support
+
+Each emulator has its own, fully independent launcher (they share only
+`Core/`). Place the launcher next to the emulator binary, or point to it with
+`<Name>Path.config` (`CemuPath.config`, `MesenPath.config`,
+`Gopher64Path.config`, `MGBAPath.config`, `PPSSPPPath.config`).
+
+| Launcher | Emulator | Players | Portable mode (created if missing) | What the launcher writes | Pads it can pin |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `CemuLauncher` | Cemu (`Cemu.exe`) | 1-8 | `portable\` folder (or the exe folder if `settings.xml` is there) | `controllerProfiles\controllerN.xml` `<uuid>` | XInput API: XInput pads. SDLController API: any pad |
+| `Gopher64Launcher` | gopher64 | 1-4 | `portable.txt` | `portable_data\config\config.json` `controller_assignment` | Any pad |
+| `MesenLauncher` | Mesen 2 (`Mesen.exe`) | 1-2 | `settings.json` next to the exe | XInput key codes of Player 1 / Player 2 | XInput pads |
+| `MGBALauncher` | mGBA (`mGBA.exe`) | 1 | `portable.ini` | `config.ini` `[gba.input.SDLC] device0` | Any pad |
+| `PPSSPPLauncher` | PPSSPP (`PPSSPPWindows64.exe`) | 1 | no `installed.txt` (data in `memstick\`) | `controls.ini` XInput device ids | XInput pads |
+
+None of them ever uses `%APPDATA%` or `Documents`.
+
+* **Cemu:** set each Controller N up once in **Options > Input settings**
+  (SDLController or XInput API). Each player's own `controllerN.xml` is the
+  **RL Default** profile; named profiles you save in Cemu are listed too. A
+  game profile that forces a controller profile overrides the launcher.
+* **gopher64:** open it once so it creates its config; its input profiles
+  are listed in the launcher.
+* **Mesen:** on Player 1 (and 2) of each console you use, pick an Xbox
+  preset or map an Xbox-style pad once. Mesen reads pads through XInput, so
+  only XInput pads can be pinned; a player left unassigned is moved off the
+  pads given to others.
+* **mGBA:** single player; mGBA's own button mapping is kept.
+* **PPSSPP:** single player; it must be in portable mode (no
+  `installed.txt` next to the exe). Its XInput mappings are moved to the
+  assigned pad's XInput slot; keyboard and DirectInput mappings stay.
+* Cemu, gopher64, Mesen and PPSSPP need an `SDL3.dll` next to the emulator
+  (or the launcher) because they have SDL built in or do not use it; mGBA
+  uses the `SDL2.dll` it ships with.
+
+---
+
 ## 🚧 Testing & Compatibility Status
 
 - **Supported:** Stable **v1.1.1403**, **v1.3.x**, and Canary builds **v1.3.x**.

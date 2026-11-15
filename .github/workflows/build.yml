@@ -71,6 +71,16 @@ jobs:
         if errorlevel 1 exit /b 1
         call .\build.bat MelonDS
         if errorlevel 1 exit /b 1
+        call .\build.bat Cemu
+        if errorlevel 1 exit /b 1
+        call .\build.bat Mesen
+        if errorlevel 1 exit /b 1
+        call .\build.bat Gopher64
+        if errorlevel 1 exit /b 1
+        call .\build.bat MGBA
+        if errorlevel 1 exit /b 1
+        call .\build.bat PPSSPP
+        if errorlevel 1 exit /b 1
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
@@ -87,6 +97,11 @@ jobs:
         ./build.sh DuckStation
         ./build.sh Xemu
         ./build.sh MelonDS
+        ./build.sh Cemu
+        ./build.sh Mesen
+        ./build.sh Gopher64
+        ./build.sh MGBA
+        ./build.sh PPSSPP
 
     # Upload the Raw Binaries
     # GitHub Actions will automatically ZIP each into '<name>.zip'
@@ -149,6 +164,36 @@ jobs:
       with:
         name: MelonDSLauncher-${{ matrix.platform }}
         path: dist/MelonDSLauncher${{ matrix.ext }}
+
+    - name: Upload Cemu Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: CemuLauncher-${{ matrix.platform }}
+        path: dist/CemuLauncher${{ matrix.ext }}
+
+    - name: Upload Mesen Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: MesenLauncher-${{ matrix.platform }}
+        path: dist/MesenLauncher${{ matrix.ext }}
+
+    - name: Upload Gopher64 Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: Gopher64Launcher-${{ matrix.platform }}
+        path: dist/Gopher64Launcher${{ matrix.ext }}
+
+    - name: Upload MGBA Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: MGBALauncher-${{ matrix.platform }}
+        path: dist/MGBALauncher${{ matrix.ext }}
+
+    - name: Upload PPSSPP Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: PPSSPPLauncher-${{ matrix.platform }}
+        path: dist/PPSSPPLauncher${{ matrix.ext }}
 
   # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
   # and publishes them as a GitHub Release named after the tag.
