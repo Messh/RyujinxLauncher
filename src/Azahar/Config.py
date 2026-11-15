@@ -166,15 +166,18 @@ def _setup_required(config_file):
 # GUID
 #
 # Azahar stores the full SDL GUID string. Azahar's SDL2 and the launcher's SDL
-# may disagree on two parts of it for the same pad: bytes 2-3 (the name CRC,
-# filled only by newer SDL) and bytes 12-13 (the product version). Azahar
+# may disagree on three parts of it for the same pad: bytes 2-3 (the name CRC,
+# filled only by newer SDL), bytes 12-13 (the product version) and bytes 14-15
+# (the driver: Azahar may see a pad through RawInput, 'r' = 72, while the
+# launcher sees it through XInput, 'x' = 78). Azahar
 # matches GUIDs exactly, so the launcher learns the GUID Azahar wrote for this
 # model from qt-config.ini and keeps it in a cache, because the binding that
 # held it is overwritten as soon as another pad is assigned.
 # ============================================================================
 def _signature(guid):
+    """Bus, vendor and product only: CRC, version and driver are blanked out."""
     guid = guid.lower()
-    return guid[:4] + "0000" + guid[8:24] + "0000" + guid[28:]
+    return guid[:4] + "0000" + guid[8:24] + "00000000"
 
 
 def _cache_path(config_file):
@@ -203,8 +206,10 @@ def _known_guids(config_file, items):
 
 def _azahar_guid(guid, known, config_file):
     guid = guid.lower()
-    candidates = known.get(_signature(guid), [])
-    if not candidates or guid in candidates:
+    # The launcher's own GUID may be in qt-config.ini from an earlier launch;
+    # any other GUID for the same model is the one Azahar's SDL produced
+    candidates = [g for g in known.get(_signature(guid), []) if g != guid]
+    if not candidates:
         return guid
     learned = candidates[0]
     log("INFO", "Using Azahar's GUID", f"{guid} -> {learned}")
