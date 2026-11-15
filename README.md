@@ -231,6 +231,46 @@ needs its own copy to read controllers. Place `SDL2.dll` (from the
 
 ---
 
+## 🕹️ PCSX2, DuckStation, xemu and melonDS Support
+
+Each emulator has its own, fully independent launcher (they share only
+`Core/`). Place the launcher next to the emulator binary, or point to it with
+`<Name>Path.config` (`PCSX2Path.config`, `DuckStationPath.config`,
+`XemuPath.config`, `MelonDSPath.config`).
+
+| Launcher | Emulator | Players | Portable mode (created if missing) | What the launcher writes |
+| :--- | :--- | :--- | :--- | :--- |
+| `PCSX2Launcher` | PCSX2 (`pcsx2-qt.exe`) | 1-8 | `portable.ini` | `inis\PCSX2.ini` `[Pad1]`..`[Pad8]` |
+| `DuckStationLauncher` | DuckStation (`duckstation-qt-*.exe`) | 1-8 | `portable.txt` | `settings.ini` `[Pad1]`..`[Pad8]` |
+| `XemuLauncher` | xemu (`xemu.exe`) | 1-4 | `xemu.toml` next to the exe | `[input.bindings]` `port1`..`port4` |
+| `MelonDSLauncher` | melonDS (`melonDS.exe`) | 1 | `portable\` folder (or the exe folder if `melonDS.toml` is already there) | `[Instance0]` `JoystickID` |
+
+None of them ever uses `%APPDATA%` or `Documents`.
+
+**PCSX2 and DuckStation**
+
+* Map a controller once to Controller Port 1 with the **SDL** input source
+  (Automatic Mapping works). That mapping is the **RL Default** profile;
+  profiles in `inputprofiles\` are listed too.
+* Both name a pad `SDL-N`, where N is the player index SDL gives it. The
+  launcher loads the emulator's own `SDL3.dll` and the same SDL hints
+  (including your `[SDLHints]`), so it computes the same N.
+* More than 2 players needs the multitap: the launcher turns it on for
+  port 1 (up to 5 players) and then port 2 (up to 8). It never turns a
+  multitap off. Pads that are not assigned are set to `Type = None`.
+
+**xemu:** binds ports by SDL GUID. Two identical controllers cannot be told
+apart; they take their ports in connection order. xemu has SDL built in, so
+place `SDL3.dll` (from `SDL3-<version>-win32-x64.zip` at
+[libsdl-org/SDL](https://github.com/libsdl-org/SDL/releases)) next to
+`xemu.exe` or next to `XemuLauncher.exe`.
+
+**melonDS:** single player. Map a controller once in **Config > Input and
+hotkeys** (Joystick side); the launcher only selects which pad uses it. It
+needs the `SDL2.dll` next to `melonDS.exe` (or next to the launcher).
+
+---
+
 ## 🚧 Testing & Compatibility Status
 
 - **Supported:** Stable **v1.1.1403**, **v1.3.x**, and Canary builds **v1.3.x**.

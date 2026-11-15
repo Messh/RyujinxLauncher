@@ -63,6 +63,14 @@ jobs:
         if errorlevel 1 exit /b 1
         call .\build.bat Azahar
         if errorlevel 1 exit /b 1
+        call .\build.bat PCSX2
+        if errorlevel 1 exit /b 1
+        call .\build.bat DuckStation
+        if errorlevel 1 exit /b 1
+        call .\build.bat Xemu
+        if errorlevel 1 exit /b 1
+        call .\build.bat MelonDS
+        if errorlevel 1 exit /b 1
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
@@ -75,6 +83,10 @@ jobs:
         ./build.sh Citron
         ./build.sh CitronNextendo
         ./build.sh Azahar
+        ./build.sh PCSX2
+        ./build.sh DuckStation
+        ./build.sh Xemu
+        ./build.sh MelonDS
 
     # Upload the Raw Binaries
     # GitHub Actions will automatically ZIP each into '<name>.zip'
@@ -113,6 +125,30 @@ jobs:
       with:
         name: AzaharLauncher-${{ matrix.platform }}
         path: dist/AzaharLauncher${{ matrix.ext }}
+
+    - name: Upload PCSX2 Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: PCSX2Launcher-${{ matrix.platform }}
+        path: dist/PCSX2Launcher${{ matrix.ext }}
+
+    - name: Upload DuckStation Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: DuckStationLauncher-${{ matrix.platform }}
+        path: dist/DuckStationLauncher${{ matrix.ext }}
+
+    - name: Upload Xemu Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: XemuLauncher-${{ matrix.platform }}
+        path: dist/XemuLauncher${{ matrix.ext }}
+
+    - name: Upload MelonDS Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: MelonDSLauncher-${{ matrix.platform }}
+        path: dist/MelonDSLauncher${{ matrix.ext }}
 
   # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
   # and publishes them as a GitHub Release named after the tag.

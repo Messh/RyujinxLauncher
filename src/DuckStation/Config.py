@@ -1,0 +1,299 @@
+"""
+DuckStation/Config.py
+Everything that understands DuckStation's settings.ini input format.
+
+DuckStation (Qt, SDL3) stores one section per virtual pad, Pad1..Pad8:
+
+    [Pad1]
+    Type = AnalogController
+    Cross = SDL-0/A
+    LUp = SDL-0/-LeftY
+    L2 = SDL-0/+LeftTrigger
+    LargeMotor = SDL-0/LargeMotor
+    ...
+
+"SDL-N" names a physical pad by N = the SDL player index the pad had when
+DuckStation opened it, or, when that index is invalid or already taken,
+the smallest free number (src/util/sdl_input_source.cpp, OpenDevice /
+GetFreePlayerId). Pads with a serial may be saved as SDL-<guid>-<serial>;
+the launcher rewrites those to SDL-N too, which DuckStation also accepts. The launcher computes the same N from its own SDL scan.
+
+A profile is the key/value set of one [PadN] section: the user's own
+mapping from the config (RL Default) or from inputprofiles/*.ini. At launch
+every "SDL-<anything>/" device prefix in it is replaced with the assigned
+pad's SDL-N, so the user's layout, deadzones and rumble keys are kept.
+
+Pads beyond port 2 need the multitap. Pad numbering (both emulators by this
+author): Pad1 = port 1A, Pad2 = port 2A, Pad3-5 = 1B-1D, Pad6-8 = 2B-2D.
+
+The file is edited line by line; nothing outside [PadN] and the multitap
+keys is touched.
+"""
+
+import glob
+import os
+import re
+
+from Core.Log import log, fatal
+
+EMULATOR = "DuckStation"
+TYPE_NONE = "None"
+DEFAULT_PROFILE = "RL Default"
+PAD_COUNT = 8
+
+# Multitap: one [ControllerPorts] MultitapMode key
+MULTITAP_SECTION, MULTITAP_KEY = "ControllerPorts", "MultitapMode"
+MULTITAP_MODES = {"Disabled": (False, False), "Port1Only": (True, False),
+                  "Port2Only": (False, True), "BothPorts": (True, True)}
+
+_DEVICE_RE = re.compile(r"SDL-[^/\s&]+/")
+_SECTION_RE = re.compile(r"^\s*\[(.+)\]\s*$")
+
+
+# ============================================================================
+# INI - minimal line-preserving reader/writer ("Key = Value")
+# ============================================================================
+def _read_lines(path):
+    with open(path, "r", encoding="utf-8", errors="surrogateescape") as f:
+        return f.read().splitlines()
+
+
+def _write_lines(path, lines):
+    with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def _section_bounds(lines, section):
+    start = None
+    for i, line in enumerate(lines):
+        match = _SECTION_RE.match(line)
+        if start is None:
+            if match and match.group(1).strip() == section:
+                start = i + 1
+        elif match:
+            return start, i
+    return (start, len(lines)) if start is not None else None
+
+
+def _section_items(lines, section):
+    bounds = _section_bounds(lines, section)
+    if not bounds:
+        return {}
+    items = {}
+    for line in lines[bounds[0]:bounds[1]]:
+        if "=" in line and not line.lstrip().startswith((";", "#")):
+            key, value = line.split("=", 1)
+            items[key.strip()] = value.strip()
+    return items
+
+
+def _apply(lines, section, updates):
+    """Replace keys in place; append missing ones at the end of the section."""
+    bounds = _section_bounds(lines, section)
+    if not bounds:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.append(f"[{section}]")
+        bounds = (len(lines), len(lines))
+
+    start, end = bounds
+    index = {}
+    for i in range(start, end):
+        if "=" in lines[i] and not lines[i].lstrip().startswith((";", "#")):
+            index[lines[i].split("=", 1)[0].strip()] = i
+
+    pending = []
+    for key, value in updates.items():
+        line = f"{key} = {value}"
+        if key in index:
+            lines[index[key]] = line
+        else:
+            pending.append(line)
+
+    insert_at = end
+    while insert_at > start and not lines[insert_at - 1].strip():
+        insert_at -= 1
+    lines[insert_at:insert_at] = pending
+
+
+def read_section(config_file, section):
+    """{key: value} of one section, or {} if the file is missing/unreadable."""
+    try:
+        return _section_items(_read_lines(config_file), section)
+    except Exception:
+        return {}
+
+
+# ============================================================================
+# TEMPLATE + PROFILES
+# ============================================================================
+def _is_sdl_pad(items):
+    return (items.get("Type", TYPE_NONE) != TYPE_NONE and
+            any(_DEVICE_RE.search(v) for v in items.values()))
+
+
+def _first_sdl_pad(lines):
+    for n in range(1, PAD_COUNT + 1):
+        items = _section_items(lines, f"Pad{n}")
+        if _is_sdl_pad(items):
+            return n, items
+    return None, {}
+
+
+def load_profiles(config_file, profiles_dir):
+    """
+    {"display name": {key: value}}, insertion-ordered.
+
+    "RL Default" is the first pad in the config bound to an SDL controller,
+    then every inputprofiles/*.ini that has one.
+    """
+    profiles = {}
+
+    if os.path.exists(config_file):
+        try:
+            n, items = _first_sdl_pad(_read_lines(config_file))
+        except Exception as e:
+            log("EXCEPTION", "Config read exception", e)
+            fatal(
+                "Configuration Error",
+                f"Could not read the {EMULATOR} config file:\n{config_file}\n\n"
+                f"Open {EMULATOR} manually once to generate valid configuration "
+                "files, then try again."
+            )
+        if items:
+            log("INFO", "Default mapping taken from", f"Pad{n}")
+            profiles[DEFAULT_PROFILE] = items
+
+    for filepath in sorted(glob.glob(os.path.join(profiles_dir, "*.ini"))):
+        name = os.path.splitext(os.path.basename(filepath))[0]
+        try:
+            n, items = _first_sdl_pad(_read_lines(filepath))
+        except Exception as e:
+            log("WARNING", "Skipping unreadable profile", filepath)
+            log("EXCEPTION", "Profile load exception", e)
+            continue
+        if not items:
+            log("INFO", "Skipping non-gamepad profile", name)
+            continue
+        profiles[name] = items
+
+    if DEFAULT_PROFILE in profiles and next(iter(profiles)) != DEFAULT_PROFILE:
+        profiles = {DEFAULT_PROFILE: profiles.pop(DEFAULT_PROFILE), **profiles}
+
+    if not profiles:
+        fatal(
+            "Controller Setup Required",
+            f"No gamepad mapping was found in {EMULATOR}.\n\n"
+            f"Open {EMULATOR}, go to Settings > Controllers, map a controller "
+            "to Controller Port 1 with the SDL input source (Automatic "
+            "Mapping works) and close it.\n"
+            "The launcher reuses that mapping for every controller.",
+            "No SDL mapping found", config_file
+        )
+
+    log("INFO", "Profiles loaded", str(len(profiles)))
+    return profiles
+
+
+# ============================================================================
+# MULTITAP + PAD ORDER
+# ============================================================================
+def _multitap(lines):
+    mode = _section_items(lines, MULTITAP_SECTION).get(MULTITAP_KEY, "Disabled")
+    return list(MULTITAP_MODES.get(mode, (False, False)))
+
+
+def _player_pads(tap1, tap2):
+    """[PadN, ...] in player order for the given multitap state."""
+    port1 = [1, 3, 4, 5] if tap1 else [1]
+    port2 = [2, 6, 7, 8] if tap2 else [2]
+    return port1 + port2
+
+
+def _ensure_multitap(lines, players):
+    """Enable the fewest multitaps that fit `players`; never disables one."""
+    tap1, tap2 = _multitap(lines)
+    while len(_player_pads(tap1, tap2)) < players:
+        if not tap1:
+            tap1 = True
+        elif not tap2:
+            tap2 = True
+        else:
+            break
+        log("INFO", "Enabling multitap for players", str(players))
+    if (tap1, tap2) != tuple(_multitap(lines)):
+        mode = next(m for m, s in MULTITAP_MODES.items() if s == (tap1, tap2))
+        _apply(lines, MULTITAP_SECTION, {MULTITAP_KEY: mode})
+    return _player_pads(tap1, tap2)
+
+
+# ============================================================================
+# SDL PLAYER IDS
+# ============================================================================
+def sdl_player_ids(hardware):
+    """
+    {hid path: N} - the N in "SDL-N" the emulator will give each pad.
+
+    Same rule as SDLInputSource::OpenDevice: SDL's player index when valid
+    and unused, otherwise the smallest free number, in open order.
+    """
+    used = set()
+    ids = {}
+    for hw in hardware:
+        pid = hw.get("player_index", -1)
+        if pid is None or pid < 0 or pid in used:
+            pid = 0
+            while pid in used:
+                pid += 1
+        used.add(pid)
+        ids[hw["path"]] = pid
+    return ids
+
+
+# ============================================================================
+# WRITING THE LAUNCH CONFIG
+# ============================================================================
+def write_input(config_file, assignments, hardware, profiles):
+    """Rewrite the [PadN] sections for this launch."""
+    if not os.path.exists(config_file):
+        log("WARNING", "Config not found, nothing written", config_file)
+        return
+
+    try:
+        lines = _read_lines(config_file)
+    except Exception as e:
+        log("EXCEPTION", f"Config read failed, {EMULATOR} will use the old config", e)
+        return
+
+    ids = sdl_player_ids(hardware)
+    names = {hw["path"]: hw["name"] for hw in hardware}
+    matched = [a for a in assignments if a["path"] in ids]
+
+    pads = _ensure_multitap(lines, len(matched))
+    used = set()
+    for assignment, pad in zip(matched, pads):
+        device = f"SDL-{ids[assignment['path']]}/"
+        section = f"Pad{pad}"
+        log("INFO", f"Saving -> Player {len(used)+1} | {names[assignment['path']]} | "
+                    f"Profile: {assignment['profile_key']} | {section} | {device[:-1]}")
+
+        updates = {}
+        # Bindings the profile does not define must not keep pointing at
+        # whichever pad this section had last time
+        for key, value in _section_items(lines, section).items():
+            if _DEVICE_RE.search(value):
+                updates[key] = _DEVICE_RE.sub(device, value)
+        for key, value in profiles[assignment["profile_key"]].items():
+            updates[key] = _DEVICE_RE.sub(device, value)
+        _apply(lines, section, updates)
+        used.add(pad)
+
+    # Every other pad is unplugged, so no stale binding drives a second player
+    for n in range(1, PAD_COUNT + 1):
+        if n not in used and _section_bounds(lines, f"Pad{n}"):
+            _apply(lines, f"Pad{n}", {"Type": TYPE_NONE})
+
+    try:
+        _write_lines(config_file, lines)
+    except Exception as e:
+        log("EXCEPTION", f"Config write failed, {EMULATOR} will use the old config", e)

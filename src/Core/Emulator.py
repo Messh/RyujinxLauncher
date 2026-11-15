@@ -26,6 +26,8 @@ Attributes an implementation must set during locate():
     exe          str   binary the launcher will start
     config_path  str   the emulator's config file
     is_appimage  bool  purely informational, used in the startup banner
+    cwd          str   optional: working directory for the emulator process
+                       (None = inherit the launcher's)
 
 and during prepare():
 
@@ -44,6 +46,7 @@ class Emulator:
         self.exe = None
         self.config_path = None
         self.is_appimage = False
+        self.cwd = None
         self.env = None
         self.profiles = {}
 
@@ -111,7 +114,9 @@ class Emulator:
             assignments (list[dict]): Player order, one entry per assigned pad:
                 {"path": hid path, "name": display name, "profile_key": str}
             hardware    (list[dict]): Fresh SDL enumeration, in OS order:
-                {"path": hid path, "guid": raw 32-char hex, "name": SDL name}
+                {"path": hid path, "guid": raw 32-char hex, "name": SDL name,
+                 "player_index": SDL player index or -1,
+                 "joystick_index": position among all joysticks}
 
         Match the two by "path". Read the existing config and replace only the
         input section - never regenerate the whole file, or unrelated user

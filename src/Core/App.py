@@ -489,9 +489,13 @@ class LauncherApp:
         enumerated in the same OS order the emulator itself will see.
 
         Returns:
-            list[dict]: [{"path", "guid", "name"}, ...] in enumeration order.
+            list[dict]: [{"path", "guid", "name", "player_index",
+                        "joystick_index"}, ...] in enumeration order.
                         "guid" is the raw 32-char SDL hex string; turning it
                         into an emulator-specific id is the emulator's job.
+                        "player_index" is SDL's player index (-1 if none).
+                        "joystick_index" is the position among ALL joysticks,
+                        gamepad or not (SDL2's device index).
         """
         sdl = self.sdl
 
@@ -505,7 +509,7 @@ class LauncherApp:
         sdl.SDL_Init()
 
         hardware = []
-        for joystick_id in sdl.SDL_GetJoystickIDs():
+        for joystick_index, joystick_id in enumerate(sdl.SDL_GetJoystickIDs()):
             if not sdl.SDL_IsGameController(joystick_id):
                 continue
 
@@ -527,10 +531,17 @@ class LauncherApp:
             except Exception:
                 path = ""
 
+            try:
+                player_index = int(sdl.SDL_JoystickGetPlayerIndex(joy))
+            except Exception:
+                player_index = -1
+
             hardware.append({
                 "path": path,
                 "guid": psz_guid.value.decode(),
-                "name": sdl.SDL_GameControllerName(ctrl).decode()
+                "name": sdl.SDL_GameControllerName(ctrl).decode(),
+                "player_index": player_index,
+                "joystick_index": joystick_index,
             })
 
             sdl.SDL_GameControllerClose(ctrl)
@@ -560,7 +571,7 @@ class LauncherApp:
 
         if os.path.exists(self.emu.exe):
             try:
-                self.process = launch(cmd_args, self.emu.env)
+                self.process = launch(cmd_args, self.emu.env, self.emu.cwd)
             except Exception as e:
                 log("EXCEPTION", "Launch failed", e)
                 messagebox.showerror(

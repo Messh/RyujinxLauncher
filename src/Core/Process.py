@@ -100,13 +100,14 @@ def _job():
 # ============================================================================
 # LAUNCH
 # ============================================================================
-def launch(cmd_args, env):
+def launch(cmd_args, env, cwd=None):
     """
     Start the emulator, tied to the launcher's lifetime.
 
     Args:
         cmd_args (list[str]): Full command line, executable first.
         env      (dict):      Environment for the child process.
+        cwd      (str|None):  Working directory for the child, None = inherit.
 
     Returns:
         subprocess.Popen: The running emulator process.
@@ -114,7 +115,7 @@ def launch(cmd_args, env):
     if sys.platform == "win32":
         # CREATE_SUSPENDED so the process is attached to the Job Object before
         # it can spawn anything of its own
-        process = subprocess.Popen(cmd_args, env=env, creationflags=0x00000004)
+        process = subprocess.Popen(cmd_args, env=env, cwd=cwd, creationflags=0x00000004)
         job = _job()
         if job:
             result = ctypes.windll.kernel32.AssignProcessToJobObject(
@@ -133,7 +134,7 @@ def launch(cmd_args, env):
         else:
             _libc = ctypes.CDLL("libc.so.6", use_errno=True)
             _preexec = lambda: _libc.prctl(1, _signal.SIGKILL, 0, 0, 0)  # PR_SET_PDEATHSIG
-        process = subprocess.Popen(cmd_args, env=env, preexec_fn=_preexec)
+        process = subprocess.Popen(cmd_args, env=env, cwd=cwd, preexec_fn=_preexec)
     return process
 
 
