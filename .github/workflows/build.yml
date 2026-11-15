@@ -2,11 +2,8 @@ name: Build Launchers
 
 on:
   push:
-    branches: [ "main", "master" ]
-    tags: [ "V_*" ]   # pushing a version tag also publishes a GitHub Release
-  pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    tags: [ "V_*" ]   # only version tags build; they also publish a GitHub Release
+  workflow_dispatch:  # manual run from the Actions tab (builds, no release)
 
 jobs:
   build:
