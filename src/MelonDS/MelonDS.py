@@ -76,7 +76,7 @@ class MelonDS(Emulator):
         self.cwd = self.dir
 
     def log_dir(self):
-        return self.data_dir
+        return os.path.join(self.data_dir, "logs")
 
     def prepare(self):
         self.lib_dir = next((d for d in (self.dir, self.base) if d and any(

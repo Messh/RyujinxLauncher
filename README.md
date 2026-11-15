@@ -249,9 +249,12 @@ None of them ever uses `%APPDATA%` or `Documents`.
 
 **PCSX2 and DuckStation**
 
-* Map a controller once to Controller Port 1 with the **SDL** input source
-  (Automatic Mapping works). That mapping is the **RL Default** profile;
-  profiles in `inputprofiles\` are listed too.
+* Map a controller once to Controller Port 1 with the **SDL** or **XInput**
+  input source (Automatic Mapping works). That mapping is the **RL Default**
+  profile; profiles in `inputprofiles\` are listed too.
+* With an XInput mapping, Xbox-style pads are written as `XInput-<slot>`;
+  any other pad (DualShock, Switch...) is written as `SDL-N` with the button
+  names translated, so mixing controller types still works.
 * Both name a pad `SDL-N`, where N is the player index SDL gives it. The
   launcher loads the emulator's own `SDL3.dll` and the same SDL hints
   (including your `[SDLHints]`), so it computes the same N.

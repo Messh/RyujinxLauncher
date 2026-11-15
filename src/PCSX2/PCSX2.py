@@ -133,6 +133,15 @@ class PCSX2(Emulator):
         else:
             hints["SDL_JOYSTICK_HIDAPI_PS3"] = "1"
         hints.update(Config.read_section(self.config_path, "SDLHints"))
+
+        # A mapping made with the XInput source needs each pad's XInput slot,
+        # which SDL reports only for pads it opens through its XInput driver;
+        # RawInput would take those pads over. Launcher-only: the emulator
+        # still gets its own settings.
+        if Config.template_source(self.config_path) == "XInput":
+            hints["SDL_JOYSTICK_RAWINPUT"] = "0"
+            hints["SDL_XINPUT_ENABLED"] = "1"
+            log("INFO", "Default mapping uses the XInput source", "reading XInput slots")
         return hints
 
     def sdl_backend(self):

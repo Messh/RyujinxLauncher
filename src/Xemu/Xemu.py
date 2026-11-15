@@ -72,7 +72,7 @@ class Xemu(Emulator):
         self.cwd = self.dir
 
     def log_dir(self):
-        return self.dir
+        return os.path.join(self.dir, "logs")
 
     def prepare(self):
         self.backend, self.lib_dir = self._find_sdl()

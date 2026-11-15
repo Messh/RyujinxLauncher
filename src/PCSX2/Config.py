@@ -43,7 +43,17 @@ PAD_COUNT = 8
 # Multitap: (section, key) per port, stored as true/false
 MULTITAP_KEYS = (("Pad", "MultitapPort1"), ("Pad", "MultitapPort2"))
 
-_DEVICE_RE = re.compile(r"SDL-[^/\s&]+/")
+# A binding names its device as SDL-<n> or XInput-<slot>, then the input
+_DEVICE_RE = re.compile(r"(SDL|XInput)-[^/\s&]+/([^\s&]+)")
+
+# XInput source (XInput-<slot>/A ...): the slot is the pad's XInput user index
+# (0-3), which SDL reports as the player index of pads it opens through its
+# XInput driver. Mappings made with the XInput source are written back as
+# XInput-<slot> for XInput pads; any other pad gets SDL-<n>, with these XInput
+# button names translated to SDL's (axes, d-pad, shoulders, motors are equal).
+XINPUT_SLOTS = 4
+XINPUT_DRIVER = "78"      # SDL GUID byte 14 = 'x'
+XINPUT_TO_SDL = {"A": "FaceSouth", "B": "FaceEast", "X": "FaceWest", "Y": "FaceNorth"}
 _SECTION_RE = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
@@ -125,8 +135,48 @@ def read_section(config_file, section):
 # TEMPLATE + PROFILES
 # ============================================================================
 def _is_sdl_pad(items):
+    """A pad bound to a controller through the SDL or XInput source."""
     return (items.get("Type", TYPE_NONE) != TYPE_NONE and
             any(_DEVICE_RE.search(v) for v in items.values()))
+
+
+def _source(items):
+    """"XInput" when the mapping was made with the XInput source, else "SDL"."""
+    for value in items.values():
+        match = _DEVICE_RE.search(value)
+        if match:
+            return match.group(1)
+    return "SDL"
+
+
+def template_source(config_file):
+    """Source of the user's default mapping, read before SDL is loaded."""
+    try:
+        _, items = _first_sdl_pad(_read_lines(config_file))
+    except Exception:
+        return "SDL"
+    return _source(items)
+
+
+def is_xinput(hw):
+    pid = hw.get("player_index", -1)
+    return hw["guid"].lower()[28:30] == XINPUT_DRIVER and 0 <= pid < XINPUT_SLOTS
+
+
+def _retarget(value, device):
+    """
+    Point every controller binding in `value` at `device`. XInput button
+    names are translated when an XInput binding moves to an SDL device.
+    """
+    to_sdl = device.startswith("SDL-")
+
+    def repl(match):
+        name = match.group(2)
+        if to_sdl and match.group(1) == "XInput":
+            sign = name[0] if name[:1] in "+-" else ""
+            name = sign + XINPUT_TO_SDL.get(name[len(sign):], name[len(sign):])
+        return f"{device}/{name}"
+    return _DEVICE_RE.sub(repl, value)
 
 
 def _first_sdl_pad(lines):
@@ -182,7 +232,7 @@ def load_profiles(config_file, profiles_dir):
             "Controller Setup Required",
             f"No gamepad mapping was found in {EMULATOR}.\n\n"
             f"Open {EMULATOR}, go to Settings > Controllers, map a controller "
-            "to Controller Port 1 with the SDL input source (Automatic "
+            "to Controller Port 1 (SDL or XInput source, Automatic "
             "Mapping works) and close it.\n"
             "The launcher reuses that mapping for every controller.",
             "No SDL mapping found", config_file
@@ -269,20 +319,26 @@ def write_input(config_file, assignments, hardware, profiles):
 
     pads = _ensure_multitap(lines, len(matched))
     used = set()
+    pads_by_path = {hw["path"]: hw for hw in hardware}
     for assignment, pad in zip(matched, pads):
-        device = f"SDL-{ids[assignment['path']]}/"
+        hw = pads_by_path[assignment["path"]]
+        profile = profiles[assignment["profile_key"]]
+        if _source(profile) == "XInput" and is_xinput(hw):
+            device = f"XInput-{hw['player_index']}"
+        else:
+            device = f"SDL-{ids[assignment['path']]}"
         section = f"Pad{pad}"
         log("INFO", f"Saving -> Player {len(used)+1} | {names[assignment['path']]} | "
-                    f"Profile: {assignment['profile_key']} | {section} | {device[:-1]}")
+                    f"Profile: {assignment['profile_key']} | {section} | {device}")
 
         updates = {}
         # Bindings the profile does not define must not keep pointing at
         # whichever pad this section had last time
         for key, value in _section_items(lines, section).items():
             if _DEVICE_RE.search(value):
-                updates[key] = _DEVICE_RE.sub(device, value)
-        for key, value in profiles[assignment["profile_key"]].items():
-            updates[key] = _DEVICE_RE.sub(device, value)
+                updates[key] = _retarget(value, device)
+        for key, value in profile.items():
+            updates[key] = _retarget(value, device)
         _apply(lines, section, updates)
         used.add(pad)
 

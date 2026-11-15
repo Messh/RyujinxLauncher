@@ -76,7 +76,7 @@ class DuckStation(Emulator):
         self.cwd = self.dir
 
     def log_dir(self):
-        return self.dir
+        return os.path.join(self.dir, "logs")
 
     # ------------------------------------------------------------------
     # 2. Runtime setup - runs before the SDL wrapper is imported
@@ -121,6 +121,15 @@ class DuckStation(Emulator):
                 "SDL_JOYSTICK_GAMEINPUT": "0",
             })
         hints.update(Config.read_section(self.config_path, "SDLHints"))
+
+        # A mapping made with the XInput source needs each pad's XInput slot,
+        # which SDL reports only for pads it opens through its XInput driver;
+        # RawInput would take those pads over. Launcher-only: the emulator
+        # still gets its own settings.
+        if Config.template_source(self.config_path) == "XInput":
+            hints["SDL_JOYSTICK_RAWINPUT"] = "0"
+            hints["SDL_XINPUT_ENABLED"] = "1"
+            log("INFO", "Default mapping uses the XInput source", "reading XInput slots")
         return hints
 
     def sdl_backend(self):
