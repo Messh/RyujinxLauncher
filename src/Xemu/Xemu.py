@@ -87,8 +87,14 @@ class Xemu(Emulator):
                 "No SDL library found", self.dir
             )
         log("INFO", f"{self.backend} library found in", self.lib_dir)
-        # xemu sets no enumeration hints of its own; keep SDL's defaults
+        # Snapshot first: xemu must start with an untouched environment
         self.env = os.environ.copy()
+
+        # xemu sets no enumeration hints, so its SDL3 runs with RawInput OFF
+        # (SDL3's default). Pin it, in case the launcher found SDL2, whose
+        # default is ON and would produce different GUIDs for XInput pads.
+        os.environ["SDL_JOYSTICK_RAWINPUT"] = "0"
+        log("INFO", "SDL hint", "SDL_JOYSTICK_RAWINPUT=0")
 
     def _find_sdl(self):
         for backend in ("SDL3", "SDL2"):

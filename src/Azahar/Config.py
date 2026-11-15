@@ -204,11 +204,25 @@ def _known_guids(config_file, items):
     return known
 
 
+RAWINPUT_DRIVER = "72"   # GUID byte 14 = 'r'
+
+
+def _driver(guid):
+    return guid[28:30]
+
+
 def _azahar_guid(guid, known, config_file):
     guid = guid.lower()
-    # The launcher's own GUID may be in qt-config.ini from an earlier launch;
-    # any other GUID for the same model is the one Azahar's SDL produced
+    # With RawInput on (Azahar.prepare) the launcher sees XInput pads the way
+    # Azahar's SDL2 does, so a RawInput GUID is already Azahar's. Learning it
+    # instead could pick up a stale XInput GUID an older launcher build wrote.
+    if _driver(guid) == RAWINPUT_DRIVER:
+        return guid
+
+    # Otherwise any other GUID for the same model may be the one Azahar's SDL
+    # produced; RawInput ones first, since those can only come from Azahar
     candidates = [g for g in known.get(_signature(guid), []) if g != guid]
+    candidates.sort(key=lambda g: _driver(g) != RAWINPUT_DRIVER)
     if not candidates:
         return guid
     learned = candidates[0]

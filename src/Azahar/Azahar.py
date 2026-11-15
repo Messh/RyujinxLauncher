@@ -107,9 +107,17 @@ class Azahar(Emulator):
             )
         log("INFO", f"{self.backend} library found in", self.lib_dir)
 
-        # Azahar sets no enumeration hints of its own (input_common/sdl/
-        # sdl_impl.cpp), so the launcher keeps SDL's defaults too
+        # Snapshot first: Azahar must start with an untouched environment
         self.env = os.environ.copy()
+
+        # Azahar sets no enumeration hints (input_common/sdl/sdl_impl.cpp), so
+        # its SDL2 runs with SDL2's defaults, where RawInput is ON: XInput pads
+        # get RawInput GUIDs (driver byte 'r'). SDL3 defaults RawInput to OFF
+        # and would report XInput GUIDs ('x', other version and name CRC) that
+        # Azahar never matches. Turn it on so the launcher computes the same
+        # GUID Azahar does, even for a pad Azahar has never been mapped with.
+        os.environ["SDL_JOYSTICK_RAWINPUT"] = "1"
+        log("INFO", "SDL hint", "SDL_JOYSTICK_RAWINPUT=1")
 
     def _find_sdl(self):
         for backend in ("SDL2", "SDL3"):
