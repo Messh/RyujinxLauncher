@@ -9,7 +9,7 @@ Data folder (src/core/config.c):
     that happen: it creates portable.ini when missing.
 
 Input (src/platform/sdl/sdl-events.c, mSDLEventsLoadConfig / mSDLAttachPlayer):
-    [gba.input.SDLC]
+    [gba.input.SDLB]          (SDL_BINDING_BUTTON 'SDLB', next to the button bindings)
     device0=03000000...      preferred pad of player 1, as SDL's GUID string
     deviceSerial0=...        optional; compared only when both sides have one
     At start mGBA attaches the connected pad whose GUID string equals device0
@@ -35,7 +35,9 @@ from Core.Log import log, fatal
 from Core.Paths import read_path_override
 
 EXE_NAMES = ("mGBA.exe",) if sys.platform == "win32" else ("mgba-qt", "mGBA")
-SECTION = "gba.input.SDLC"
+SECTION = "gba.input.SDLB"
+# Older launcher versions wrote device0 to this section, which mGBA never reads
+STRAY_SECTION = "gba.input.SDLC"
 DEFAULT_PROFILE = "Default"
 GUID_CACHE_FILE = "MGBALauncher-guids.json"
 
@@ -205,6 +207,22 @@ class MGBA(Emulator):
     def load_profiles(self):
         return {DEFAULT_PROFILE: None}
 
+    @staticmethod
+    def _drop_stray_section(lines):
+        """Remove [gba.input.SDLC] when it holds only what this launcher wrote."""
+        b = _bounds(lines, STRAY_SECTION)
+        if not b:
+            return
+        keys = {l.split("=", 1)[0].strip() for l in lines[b[0]:b[1]] if "=" in l}
+        if keys <= {"device0", "deviceSerial0"}:
+            start, end = b[0] - 1, b[1]
+            while end > b[0] and not lines[end - 1].strip():
+                end -= 1
+            del lines[start:end]
+            while start < len(lines) and start > 0 and not lines[start].strip() and not lines[start - 1].strip():
+                del lines[start]
+            log("INFO", "Removed stray section", f"[{STRAY_SECTION}]")
+
     def write_input_config(self, assignments, hardware):
         if not assignments:
             return
@@ -233,6 +251,7 @@ class MGBA(Emulator):
         log("INFO", f"Saving -> Player 1 | {hw['name']} | device0={guid}")
         _set(lines, SECTION, "device0", guid)
         _set(lines, SECTION, "deviceSerial0", None)
+        self._drop_stray_section(lines)
 
         try:
             _write_lines(self.config_path, lines)
