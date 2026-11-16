@@ -210,14 +210,17 @@ class RetroArch(Emulator):
         player = 0
         for a in assignments:
             hw = pads.get(a["path"])
-            if not hw or player >= self.max_players:
+            if not hw:
+                log("WARNING", "Assigned pad not found in the final scan", a.get("name", a["path"]))
+                continue
+            if player >= self.max_players:
                 continue
             n = player + 1
             index = hw["joystick_index"]
             used.add(index)
             updates[f"input_player{n}_joypad_index"] = index
             if n > 1:
-                for key, value in (self.profiles.get(a.get("profile")) or
+                for key, value in (self.profiles.get(a.get("profile_key")) or
                                    self.profiles.get(DEFAULT_PROFILE) or {}).items():
                     updates[f"input_player{n}_{key}"] = value
             log("INFO", f"Saving -> Player {n} | {hw['name']} | joypad index {index}")

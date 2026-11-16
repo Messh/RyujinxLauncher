@@ -213,7 +213,7 @@ def write_input(config_dir, assignments, hardware, profiles):
             continue
         port = len(assigned)
         device = names[hw["path"]]
-        profile = profiles.get(a.get("profile")) or profiles.get(DEFAULT_PROFILE) or {}
+        profile = profiles.get(a.get("profile_key")) or profiles.get(DEFAULT_PROFILE) or {}
         _replace_section(lines, f"GCPad{port + 1}", {"Device": device, **_for_device(profile, device)})
         assigned[port] = device
         log("INFO", f"Saving -> Port {port + 1} | {hw['name']} | {device} | Profile: {a.get('profile')}")

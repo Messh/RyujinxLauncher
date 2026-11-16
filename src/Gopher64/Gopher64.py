@@ -177,7 +177,7 @@ class Gopher64(Emulator):
             hw = paths.get(a["path"])
             if not hw or port >= PORTS:
                 continue
-            if not hw["path"]:
+            if not hw["path"] or hw["path"].startswith("GUID_"):
                 log("WARNING", "Pad has no SDL path, cannot pin it", hw["name"])
                 continue
             assignment[port] = hw["path"]

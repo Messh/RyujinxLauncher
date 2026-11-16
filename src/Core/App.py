@@ -189,6 +189,7 @@ class LauncherApp:
         self.hardware_map.clear()
 
         # Scan all connected controllers and build current hardware map
+        fallback_seen = {}
         for joystick_id in sdl.SDL_GetJoystickIDs():
             if not sdl.SDL_IsGameController(joystick_id):
                 continue  # Skip non-gamepad devices (e.g., flight sticks)
@@ -205,11 +206,7 @@ class LauncherApp:
                 raw_name = sdl.SDL_GameControllerName(ctrl).decode()
 
                 # Get HID path (hardware-specific, persists across reconnects)
-                try:
-                    path_bytes = sdl.SDL_GameControllerPath(ctrl)
-                    hid_path = path_bytes.decode() if path_bytes else f"UNK_{instance_id}"
-                except Exception:
-                    hid_path = f"UNK_{instance_id}"  # Fallback for unsupported platforms
+                hid_path = self._controller_path(ctrl, joy, fallback_seen)
 
                 self.hardware_map[instance_id] = (hid_path, raw_name)
 
@@ -481,6 +478,30 @@ class LauncherApp:
     # ========================================================================
     # CONFIG GENERATION & LAUNCH
     # ========================================================================
+    def _controller_path(self, ctrl, joy, fallback_seen):
+        """
+        Stable id of a pad: its HID path, or - when the SDL library cannot
+        report one (old SDL2 builds) - "GUID_<guid>_<n>", n counting pads
+        with the same GUID in enumeration order. Unlike the instance id,
+        this survives the SDL re-init in scan_hardware().
+        """
+        sdl = self.sdl
+        try:
+            p = sdl.SDL_GameControllerPath(ctrl)
+            if p:
+                return p.decode()
+        except Exception:
+            pass
+        try:
+            buf = (ctypes.c_char * 33)()
+            sdl.SDL_JoystickGetGUIDString(sdl.SDL_JoystickGetGUID(joy), buf, 33)
+            guid = buf.value.decode()
+        except Exception:
+            guid = "unknown"
+        n = fallback_seen.get(guid, 0)
+        fallback_seen[guid] = n + 1
+        return f"GUID_{guid}_{n}"
+
     def scan_hardware(self):
         """
         Fresh SDL enumeration performed immediately before writing the config.
@@ -513,6 +534,7 @@ class LauncherApp:
         sdl.SDL_Init()
 
         hardware = []
+        fallback_seen = {}
         for joystick_index, joystick_id in enumerate(sdl.SDL_GetJoystickIDs()):
             if not sdl.SDL_IsGameController(joystick_id):
                 continue
@@ -529,11 +551,7 @@ class LauncherApp:
             sdl.SDL_JoystickGetGUIDString(guid_obj, psz_guid, 33)
 
             # Extract HID path (for matching with assignments)
-            try:
-                p = sdl.SDL_GameControllerPath(ctrl)
-                path = p.decode() if p else ""
-            except Exception:
-                path = ""
+            path = self._controller_path(ctrl, joy, fallback_seen)
 
             try:
                 player_index = int(sdl.SDL_JoystickGetPlayerIndex(joy))
