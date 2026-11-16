@@ -139,7 +139,8 @@ class SDLManager:
         """
         Joystick-level inputs behind Back and the two triggers, for emulators
         that read raw SDL joystick buttons/axes instead of the gamepad API.
-        Returns {"back"|"lefttrigger"|"righttrigger": ("button", n) |
+        Returns {"back"|"leftstick"|"rightstick"|"lefttrigger"|"righttrigger":
+        ("button", n) |
         ("axis", n) | ("hat", n, mask) | None}.
         """
         def convert(bind):
@@ -154,6 +155,10 @@ class SDLManager:
         return {
             "back": convert(sdl2.SDL_GameControllerGetBindForButton(
                 ctrl, sdl2.SDL_CONTROLLER_BUTTON_BACK)),
+            "leftstick": convert(sdl2.SDL_GameControllerGetBindForButton(
+                ctrl, sdl2.SDL_CONTROLLER_BUTTON_LEFTSTICK)),
+            "rightstick": convert(sdl2.SDL_GameControllerGetBindForButton(
+                ctrl, sdl2.SDL_CONTROLLER_BUTTON_RIGHTSTICK)),
             "lefttrigger": convert(sdl2.SDL_GameControllerGetBindForAxis(
                 ctrl, sdl2.SDL_CONTROLLER_AXIS_TRIGGERLEFT)),
             "righttrigger": convert(sdl2.SDL_GameControllerGetBindForAxis(

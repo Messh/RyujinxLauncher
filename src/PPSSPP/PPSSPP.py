@@ -5,9 +5,10 @@ Depends on Core only, never on another emulator package.
 
 Data folder (Windows/main.cpp, InitMemstickDirectory):
     Without installed.txt next to the exe, PPSSPP keeps everything in
-    <exe dir>/memstick (portable). With installed.txt it uses the path inside
-    it or Documents\\PPSSPP. The launcher refuses to run in that case instead
-    of touching Documents.
+    <exe dir>/memstick (portable). With installed.txt it uses the folder
+    written on its first line as the whole memstick (saves AND PSP/SYSTEM
+    config); an empty installed.txt means Documents\\PPSSPP, which the
+    launcher refuses instead of touching Documents.
 
     memstick/PSP/SYSTEM/controls.ini   [ControlMapping]
 
@@ -41,17 +42,17 @@ XINPUT_DRIVER = "78"          # SDL GUID byte 14 = 'x'
 DEFAULT_PROFILE = "Default"
 
 # Speed hotkeys on player 1's pad (Core/KeyMap.cpp virtual keys):
-#   Select + R2 -> "Fast-forward" (VIRTKEY_FASTFORWARD, while held)
-#   Select + L2 -> "Rewind"       (VIRTKEY_REWIND, one saved step per press;
-#                                  needs Settings > System > Rewind snapshot interval)
-# NKCODE_BUTTON_SELECT = 109; triggers are axes JOYSTICK_AXIS_LTRIGGER (17) and
-# JOYSTICK_AXIS_RTRIGGER (18), stored as AXIS_BIND_NKCODE_START (4000) + axis * 2
-# (+0 = positive). A combo joins its inputs with ':'; ',' separates alternatives.
-SELECT_CODE = 109
-LTRIGGER_CODE = 4000 + 17 * 2
-RTRIGGER_CODE = 4000 + 18 * 2
-SPEED_HOTKEYS = (("Fast-forward", RTRIGGER_CODE), ("Rewind", LTRIGGER_CODE))
-_COMBO_RE = re.compile(rf"^2[0-3]-{SELECT_CODE}:2[0-3]-({LTRIGGER_CODE}|{RTRIGGER_CODE})$")
+#   R3 -> "Fast-forward" (VIRTKEY_FASTFORWARD, while held)
+#   L3 -> "Rewind"       (VIRTKEY_REWIND, one saved step per press;
+#                         needs Settings > System > Rewind snapshot interval)
+# NKCODE_BUTTON_THUMBL = 106, NKCODE_BUTTON_THUMBR = 107. The PSP has no stick
+# clicks, so neither collides with a game button. ',' separates alternatives.
+L3_CODE = 106
+R3_CODE = 107
+SPEED_HOTKEYS = (("Fast-forward", R3_CODE), ("Rewind", L3_CODE))
+# A binding this launcher wrote before: a stick click, or the Select + trigger
+# combo (109 + axis 4034/4036) older versions used
+_COMBO_RE = re.compile(rf"^2[0-3]-({L3_CODE}|{R3_CODE})$|^2[0-3]-109:2[0-3]-(4034|4036)$")
 
 # "<device>-<code>" tokens whose device is an XInput slot
 _XINPUT_TOKEN_RE = re.compile(r"(?<![\d-])(2[0-3])-(\d+)")
@@ -111,19 +112,34 @@ class PPSSPP(Emulator):
             )
 
         installed = os.path.join(self.dir, "installed.txt")
-        if os.path.exists(installed):
-            fatal(
-                "PPSSPP Is Not Portable",
-                f"PPSSPP is in installed mode because this file exists:\n{installed}\n\n"
-                "In that mode it keeps its data in Documents. Move your "
-                "memstick data next to PPSSPP and delete installed.txt to use "
-                "portable mode.",
-                "installed.txt present", installed
-            )
-
         self.memstick = os.path.join(self.dir, "memstick")
+        if os.path.exists(installed):
+            custom = self._read_installed(installed)
+            if not custom:
+                fatal(
+                    "PPSSPP Is Not Portable",
+                    f"This file exists but is empty:\n{installed}\n\n"
+                    "An empty installed.txt makes PPSSPP keep its data in "
+                    "Documents. Write your memstick folder in it, or delete it "
+                    "to use the memstick folder next to PPSSPP.",
+                    "installed.txt empty", installed
+                )
+            self.memstick = custom
+            log("INFO", "Memstick folder from installed.txt", custom)
+
         self.config_path = os.path.join(self.memstick, "PSP", "SYSTEM", "controls.ini")
         self.cwd = self.dir
+
+    @staticmethod
+    def _read_installed(path):
+        """The memstick folder written in installed.txt (first line), or None."""
+        try:
+            with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+                line = f.readline().strip().strip('"')
+        except OSError as e:
+            log("EXCEPTION", "installed.txt read failed", e)
+            return None
+        return os.path.normpath(line) if line else None
 
     def log_dir(self):
         return os.path.join(self.dir, "logs")
@@ -194,7 +210,7 @@ class PPSSPP(Emulator):
             # Creating it with only a few keys would drop the other defaults.
             log("WARNING", "controls.ini missing; open PPSSPP > Settings > Controls and "
                            "change any mapping once so the launcher can set the pad and "
-                           "the Select + R2 / L2 hotkeys", self.config_path)
+                           "the R3 / L3 speed hotkeys", self.config_path)
             return
 
         try:
@@ -215,10 +231,10 @@ class PPSSPP(Emulator):
                 changed += 1
         log("INFO", "XInput mappings moved to device", f"{device} ({changed} lines)")
 
-        for key, trigger in SPEED_HOTKEYS:
-            combo = f"{device}-{SELECT_CODE}:{device}-{trigger}"
-            self._set_combo(lines, key, combo)
-            log("INFO", "Speed hotkey", f"{key} += {combo}")
+        for key, code in SPEED_HOTKEYS:
+            binding = f"{device}-{code}"
+            self._set_combo(lines, key, binding)
+            log("INFO", "Speed hotkey", f"{key} += {binding}")
 
         try:
             _write_lines(self.config_path, lines)

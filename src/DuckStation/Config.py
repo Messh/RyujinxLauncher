@@ -301,15 +301,17 @@ def sdl_player_ids(hardware):
 
 
 # ============================================================================
-# SPEED HOTKEYS (Select + R2 / Select + L2 on player 1's pad)
+# SPEED HOTKEYS (R3 / L3 on player 1's pad)
 # ============================================================================
 HOTKEYS_SECTION = "Hotkeys"
-FAST_FORWARD_HOTKEY = "FastForward"     # Select + R2, fast-forward while held
-# Select + L2, rewinds while held (needs Settings > Emulation > Rewind on)
+FAST_FORWARD_HOTKEY = "FastForward"     # R3, fast-forward while held
+# L3, rewinds while held (needs Settings > Emulation > Rewind on)
 SLOW_HOTKEY = "Rewind"
 
-# A chord this launcher wrote before, on any device
-_CHORD_RE = re.compile(r"^(SDL|XInput)-[^/\s&]+/Back\s*&\s*(SDL|XInput)-[^/\s&]+/\+(Right|Left)Trigger$")
+# A binding this launcher wrote before, on any device: a stick click, or
+# the Select + trigger chord older versions used
+_CHORD_RE = re.compile(r"^(SDL|XInput)-[^/\s&]+/(LeftStick|RightStick)$"
+                       r"|^(SDL|XInput)-[^/\s&]+/Back\s*&\s*(SDL|XInput)-[^/\s&]+/\+(Right|Left)Trigger$")
 
 
 def _set_hotkey(lines, hotkey, chord):
@@ -318,7 +320,7 @@ def _set_hotkey(lines, hotkey, chord):
 
     The emulator reads every "<hotkey> = ..." line of [Hotkeys] as one more
     binding, so the user's own bindings (e.g. Keyboard/Tab) are kept; only a
-    Select + trigger chord this launcher wrote for another pad is replaced.
+    binding this launcher wrote for another pad is replaced.
     """
     bounds = _section_bounds(lines, HOTKEYS_SECTION)
     if not bounds:
@@ -341,10 +343,10 @@ def _set_hotkey(lines, hotkey, chord):
 
 
 def _set_speed_hotkeys(lines, device):
-    for hotkey, trigger in ((FAST_FORWARD_HOTKEY, "RightTrigger"), (SLOW_HOTKEY, "LeftTrigger")):
-        chord = f"{device}/Back & {device}/+{trigger}"
-        _set_hotkey(lines, hotkey, chord)
-        log("INFO", "Speed hotkey", f"{hotkey} = {chord}")
+    for hotkey, button in ((FAST_FORWARD_HOTKEY, "RightStick"), (SLOW_HOTKEY, "LeftStick")):
+        binding = f"{device}/{button}"
+        _set_hotkey(lines, hotkey, binding)
+        log("INFO", "Speed hotkey", f"{hotkey} = {binding}")
 
 
 # ============================================================================

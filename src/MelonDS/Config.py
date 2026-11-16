@@ -17,14 +17,14 @@ it is the single "Default" profile; the launcher only sets JoystickID to the
 assigned pad's index among ALL joysticks (Core's "joystick_index").
 
 Speed hotkeys (EmuInstanceInput.cpp hotkeyNames) take one input, not a combo:
-    HK_FastForward = R2      fast-forward while held
-    HK_SlowMo      = L2      slow motion while held (melonDS has no rewind)
+    HK_FastForward = R3      fast-forward while held
+    HK_SlowMo      = L3      slow motion while held (melonDS has no rewind)
 They are written in melonDS's joystick encoding, using the joystick-level
-button/axis SDL reports behind each trigger:
+button/hat/axis SDL reports behind each stick click:
     button n                -> n
     hat n, direction mask   -> 0x100 | n << 4 | mask
     axis n as a trigger     -> 0xFFFF | 0x10000 | 2 << 20 | n << 24
-A trigger already used by a DS button is left alone.
+An input already used by a DS button is left alone.
 
 melonDS saves its config on exit, so the value written here is what it reads
 on start.
@@ -38,7 +38,7 @@ from . import Toml
 
 INSTANCE = "Instance0"
 DEFAULT_PROFILE = "Default"
-SPEED_HOTKEYS = (("HK_FastForward", "righttrigger", "R2"), ("HK_SlowMo", "lefttrigger", "L2"))
+SPEED_HOTKEYS = (("HK_FastForward", "rightstick", "R3"), ("HK_SlowMo", "leftstick", "L3"))
 
 
 def _joy_value(bind):
@@ -59,8 +59,8 @@ def _set_speed_hotkeys(lines, hw):
     used = {Toml.get(lines, k): k for k in Toml.all_values(lines)
             if k.startswith(prefix) and not k[len(prefix):].startswith("HK_")}
     bindings = hw.get("raw_bindings") or {}
-    for hotkey, trigger, label in SPEED_HOTKEYS:
-        value = _joy_value(bindings.get(trigger))
+    for hotkey, source, label in SPEED_HOTKEYS:
+        value = _joy_value(bindings.get(source))
         if value is None:
             log("WARNING", f"{label} not found on this pad, {hotkey} left unchanged", hw["name"])
         elif value in used:

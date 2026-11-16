@@ -496,7 +496,8 @@ class LauncherApp:
                         "player_index" is SDL's player index (-1 if none).
                         "joystick_index" is the position among ALL joysticks,
                         gamepad or not (SDL2's device index).
-                        "raw_bindings" maps "back"/"lefttrigger"/"righttrigger"
+                        "raw_bindings" maps "back"/"leftstick"/"rightstick"/
+                        "lefttrigger"/"righttrigger"
                         to the joystick-level ("button", n) / ("axis", n) /
                         ("hat", n, mask) behind it, or None.
         """
