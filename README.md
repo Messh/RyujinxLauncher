@@ -286,8 +286,8 @@ Each emulator has its own, fully independent launcher (they share only
 | `CemuLauncher` | Cemu (`Cemu.exe`) | 1-8 | `portable\` folder (or the exe folder if `settings.xml` is there) | `controllerProfiles\controllerN.xml` `<uuid>` | XInput API: XInput pads. SDLController API: any pad |
 | `Gopher64Launcher` | gopher64 | 1-4 | `portable.txt` | `portable_data\config\config.json` `controller_assignment` | Any pad |
 | `MesenLauncher` | Mesen 2 (`Mesen.exe`) | 1-2 | `settings.json` next to the exe | XInput key codes of Player 1 / Player 2 | XInput pads |
-| `MGBALauncher` | mGBA (`mGBA.exe`) | 1 | `portable.ini` | `config.ini` `[gba.input.SDLC] device0` | Any pad |
-| `PPSSPPLauncher` | PPSSPP (`PPSSPPWindows64.exe`) | 1 | no `installed.txt` (data in `memstick\`) | `controls.ini` XInput device ids | XInput pads |
+| `MGBALauncher` | mGBA (`mGBA.exe`) | 1 | `portable.ini` | `config.ini` `[gba.input.SDLB] device0` | Any pad |
+| `PPSSPPLauncher` | PPSSPP (`PPSSPPWindows64.exe`) | 1 | `memstick\`, or the folder written in `installed.txt` (an empty `installed.txt` is refused) | `controls.ini` XInput device ids | XInput pads |
 
 None of them ever uses `%APPDATA%` or `Documents`.
 
@@ -302,12 +302,37 @@ None of them ever uses `%APPDATA%` or `Documents`.
   only XInput pads can be pinned; a player left unassigned is moved off the
   pads given to others.
 * **mGBA:** single player; mGBA's own button mapping is kept.
-* **PPSSPP:** single player; it must be in portable mode (no
-  `installed.txt` next to the exe). Its XInput mappings are moved to the
+* **PPSSPP:** single player. With a folder written in `installed.txt`,
+  PPSSPP keeps its whole memstick there, config included
+  (`<folder>\PSP\SYSTEM\controls.ini`). Its XInput mappings are moved to the
   assigned pad's XInput slot; keyboard and DirectInput mappings stay.
 * Cemu, gopher64, Mesen and PPSSPP need an `SDL3.dll` next to the emulator
   (or the launcher) because they have SDL built in or do not use it; mGBA
   uses the `SDL2.dll` it ships with.
+
+---
+
+## 🕹️ RetroArch (FinalBurn Neo) and Dolphin (GameCube) Support
+
+Independent launchers, like the others. Place them next to the emulator or
+use `RetroArchPath.config` / `DolphinPath.config`.
+
+| Launcher | Emulator | Players | Portable mode (created if missing) | What the launcher writes | Pads it can pin |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `RetroArchLauncher` | RetroArch (`retroarch.exe`) | 1-`input_max_users` (max 8) | `retroarch.cfg` next to the exe | `input_playerN_joypad_index`, and Player 1's joypad binds copied to every assigned player | Any pad (sdl2 joypad driver) |
+| `DolphinLauncher` | Dolphin (`Dolphin.exe`) | 1-4 | `portable.txt` (data in `User\`) | `GCPadNew.ini` `[GCPadN]` (Device + profile), `Dolphin.ini` `SIDeviceN`, `Hotkeys.ini` | XInput pads as `XInput/<slot>/Gamepad`, others as `SDL/<n>/<name>` |
+
+* **RetroArch:** needs `input_joypad_driver = "sdl2"` and the `SDL2.dll`
+  next to `retroarch.exe`. Map Player 1 once (Settings > Input > Port 1
+  Controls); that mapping is the profile for every player. Hotkeys are left
+  as they are: RetroArch gates all of them behind `input_enable_hotkey`.
+  Playnite arguments: `-L ".\cores\fbneo_libretro.dll" "{ImagePath}"`.
+* **Dolphin:** map GameCube Port 1 once (Controllers > Port 1 > Configure);
+  `[GCPad1]` is the **Default** profile and every `Profiles\GCPad\*.ini` is
+  listed too. Assigned ports get a GameCube controller in `SIDeviceN`;
+  unassigned ports that had one are emptied (other device types are kept).
+  Needs an `SDL3.dll` next to Dolphin or the launcher.
+  Playnite arguments: `--exec="{ImagePath}" --batch`.
 
 ---
 
@@ -318,10 +343,11 @@ bindings (e.g. `Tab`) are kept. Select is never used: too many games need it.
 
 | Emulator | Fast-forward | Rewind / slow motion | Setting written |
 | :--- | :--- | :--- | :--- |
-| PCSX2 | R3 (hold) | L3: slow motion (toggle, no rewind) | `[Hotkeys] HoldTurbo`, `ToggleSlowMotion` |
+| PCSX2 | R3 (hold) | — (no rewind; slow motion left to you) | `[Hotkeys] HoldTurbo` |
 | DuckStation | R3 (hold) | L3: rewind (hold) ¹ | `[Hotkeys] FastForward`, `Rewind` |
 | PPSSPP | R3 (hold) | L3: rewind (one step per press) ² | `[ControlMapping] Fast-forward`, `Rewind` (needs an existing `controls.ini`) |
 | Mesen | R3 (hold) | L3: rewind (hold) | `Preferences.ShortcutKeys`, second key combination |
+| Dolphin | R3 (hold) | — (no rewind or slow motion) | `Hotkeys.ini` `Emulation Speed/Disable Emulation Speed Limit` += `` `<pad>:Thumb R` `` |
 | melonDS | R3 (hold) | L3: slow motion (hold, no rewind) | `[Instance0.Joystick] HK_FastForward`, `HK_SlowMo` (skipped if the input is used by a DS button) |
 
 ¹ Enable *Settings > Emulation > Rewind*. ² Set *Settings > System > Rewind snapshot interval*.

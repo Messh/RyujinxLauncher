@@ -81,6 +81,10 @@ jobs:
         if errorlevel 1 exit /b 1
         call .\build.bat PPSSPP
         if errorlevel 1 exit /b 1
+        call .\build.bat RetroArch
+        if errorlevel 1 exit /b 1
+        call .\build.bat Dolphin
+        if errorlevel 1 exit /b 1
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
@@ -102,6 +106,8 @@ jobs:
         ./build.sh Gopher64
         ./build.sh MGBA
         ./build.sh PPSSPP
+        ./build.sh RetroArch
+        ./build.sh Dolphin
 
     # Upload the Raw Binaries
     # GitHub Actions will automatically ZIP each into '<name>.zip'
@@ -194,6 +200,18 @@ jobs:
       with:
         name: PPSSPPLauncher-${{ matrix.platform }}
         path: dist/PPSSPPLauncher${{ matrix.ext }}
+
+    - name: Upload RetroArch Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: RetroArchLauncher-${{ matrix.platform }}
+        path: dist/RetroArchLauncher${{ matrix.ext }}
+
+    - name: Upload Dolphin Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: DolphinLauncher-${{ matrix.platform }}
+        path: dist/DolphinLauncher${{ matrix.ext }}
 
   # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
   # and publishes them as a GitHub Release named after the tag.
