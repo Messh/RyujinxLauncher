@@ -31,10 +31,9 @@ empty get a GameCube controller; unassigned ports holding a GameCube
 controller are emptied, so no stale mapping drives a second player. Other
 device types (GBA, keyboard, bongos...) are left alone.
 
-Hotkeys.ini [Hotkeys] "Emulation Speed/Disable Emulation Speed Limit" is a
-held hotkey (fast-forward while held). R3 of player 1's pad is added to it
-as a device-qualified term (`<device>:Thumb R`), OR-ed with the user's own
-binding. Dolphin has no rewind and no slow-motion hotkey.
+No hotkeys are written: only the pads are mapped. Older versions OR-ed
+`<device>:Thumb R` into Hotkeys.ini "Emulation Speed/Disable Emulation Speed
+Limit"; that term is removed at launch, the user's own binding is kept.
 
 Files are edited line by line; nothing else is touched.
 """
@@ -59,7 +58,7 @@ SI_GC_CONTROLLER = "6"
 
 FAST_FORWARD_KEY = "Emulation Speed/Disable Emulation Speed Limit"
 FAST_FORWARD_INPUT = "Thumb R"
-# A term this launcher added before: `<any device>:Thumb R`
+# A term older launcher versions added: `<any device>:Thumb R`
 _FF_TERM_RE = re.compile(r"\s*\|?\s*`[^`]+:" + re.escape(FAST_FORWARD_INPUT) + r"`")
 
 _SECTION_RE = re.compile(r"^\s*\[(.+)\]\s*$")
@@ -225,8 +224,7 @@ def write_input(config_dir, assignments, hardware, profiles):
         return
 
     _set_si_devices(dolphin_ini, assigned)
-    if 0 in assigned:
-        _set_fast_forward(hotkeys_ini, assigned[0])
+    _remove_fast_forward(hotkeys_ini)
 
 
 def _set_si_devices(path, assigned):
@@ -256,25 +254,19 @@ def _set_si_devices(path, assigned):
             log("EXCEPTION", "Dolphin.ini write failed, ports left as they are", e)
 
 
-def _set_fast_forward(path, device):
-    """OR `<device>:Thumb R` into the held speed-limit hotkey."""
+def _remove_fast_forward(path):
+    """Drop the `<device>:Thumb R` term older versions added to the speed hotkey."""
     try:
         lines = _read_lines(path) if os.path.exists(path) else []
-    except OSError as e:
-        log("EXCEPTION", "Hotkeys.ini read failed, fast-forward not set", e)
+    except OSError:
         return
-    if not _section_bounds(lines, "Hotkeys"):
-        # Creating [Hotkeys] with one key would drop Dolphin's default hotkeys
-        log("WARNING", "No [Hotkeys] in Hotkeys.ini yet; open Dolphin > Options > Hotkey "
-                       "Settings once and close it", "fast-forward not set")
+    current = _items(lines, "Hotkeys").get(FAST_FORWARD_KEY)
+    if not current or not _FF_TERM_RE.search(current):
         return
-    current = _items(lines, "Hotkeys").get(FAST_FORWARD_KEY, "")
     kept = _FF_TERM_RE.sub("", current).strip().strip("|").strip()
-    term = f"`{device}:{FAST_FORWARD_INPUT}`"
-    value = f"{kept}|{term}" if kept else term
-    _set_key(lines, "Hotkeys", FAST_FORWARD_KEY, value)
-    log("INFO", "Speed hotkey (hold)", f"{FAST_FORWARD_KEY} = {value}")
+    _set_key(lines, "Hotkeys", FAST_FORWARD_KEY, kept)
+    log("INFO", "Removed old R3 speed hotkey", f"{FAST_FORWARD_KEY} = {kept}")
     try:
         _write_lines(path, lines)
     except OSError as e:
-        log("EXCEPTION", "Hotkeys.ini write failed, fast-forward not set", e)
+        log("EXCEPTION", "Hotkeys.ini write failed, old R3 speed hotkey kept", e)

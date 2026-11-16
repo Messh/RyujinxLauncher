@@ -16,10 +16,15 @@ Input (UI/Config/*Config.cs, Windows/WindowsKeyManager.cpp):
     0x1000; DirectInput pads use 0x2000+ with an unstable enumeration index
     and cannot be pinned.
 
+Consoles handled: NES, SNES and Game Boy / Game Boy Color (both use the
+"Gameboy" config). Other Mesen consoles are left alone.
+
 At launch every XInput code inside a player's ports is moved to the slot of
 the pad assigned to that player, keeping the user's own button layout:
-    player 1 -> Port1 / Controller / single-port consoles
-    player 2 -> Port2 (NES, SNES, SMS, ColecoVision)
+    player 1 -> Nes.Port1, Snes.Port1, Gameboy.Controller
+    player 2 -> Nes.Port2, Snes.Port2 (Game Boy is single player)
+If player 2's port has no XInput mapping yet, player 1's mappings are copied
+into it first, and a port whose Type is "None" gets the console's pad.
 Ports of players that are not assigned are left as they are.
 """
 
@@ -50,11 +55,11 @@ SPEED_SHORTCUTS = (("FastForward", 8, "R3"), ("Rewind", 7, "L3"))
 
 # Config paths (console, port) per player
 PLAYER_PORTS = [
-    [("Nes", "Port1"), ("Snes", "Port1"), ("Sms", "Port1"), ("Cv", "Port1"),
-     ("PcEngine", "Port1"), ("Gameboy", "Controller"), ("Gba", "Controller"),
-     ("Ws", "ControllerHorizontal"), ("Ws", "ControllerVertical")],
-    [("Nes", "Port2"), ("Snes", "Port2"), ("Sms", "Port2"), ("Cv", "Port2")],
+    [("Nes", "Port1"), ("Snes", "Port1"), ("Gameboy", "Controller")],
+    [("Nes", "Port2"), ("Snes", "Port2")],
 ]
+# Port Type written when player 2's port is empty (UI/Interop ControllerType)
+PAD_TYPE = {"Nes": "NesController", "Snes": "SnesController"}
 MAPPINGS = ("Mapping1", "Mapping2", "Mapping3", "Mapping4")
 
 _SDL_PATTERNS = ("SDL3.dll", "SDL2.dll", "libSDL3*.so*", "libSDL2*.so*")
@@ -74,6 +79,40 @@ def _mappings(config, player):
                     yield cfg[name]
 
 
+def _has_xinput(cfg):
+    return any(_is_xinput_code(v) for name in MAPPINGS
+               if isinstance(cfg.get(name), dict) for v in cfg[name].values())
+
+
+def _fill_from_player1(config, player):
+    """
+    Give each of `player`'s ports that has no XInput mapping a copy of the
+    XInput mappings of the same console's player 1 port. Returns the
+    consoles filled.
+    """
+    source = dict(PLAYER_PORTS[0])
+    filled = []
+    for console, port in PLAYER_PORTS[player]:
+        section = config.get(console)
+        if not isinstance(section, dict) or not isinstance(section.get(source.get(console)), dict):
+            continue
+        src = section[source[console]]
+        if not _has_xinput(src):
+            continue
+        cfg = section.setdefault(port, {})
+        if not isinstance(cfg, dict):
+            continue
+        if cfg.get("Type") in (None, "None") and console in PAD_TYPE:
+            cfg["Type"] = PAD_TYPE[console]
+        if _has_xinput(cfg):
+            continue
+        for name in MAPPINGS:
+            if isinstance(src.get(name), dict) and any(_is_xinput_code(v) for v in src[name].values()):
+                cfg[name] = json.loads(json.dumps(src[name]))
+        filled.append(console)
+    return filled
+
+
 def _retarget(config, player, slot_for):
     """
     Rewrite the XInput codes of one player's ports. `slot_for(old_slot)`
@@ -91,7 +130,7 @@ def _retarget(config, player, slot_for):
 
 
 class Mesen(Emulator):
-    """Mesen 2 (multi-system emulator: NES, SNES, GB/GBA, PCE, SMS, WS)."""
+    """Mesen 2, used for NES, SNES, Game Boy and Game Boy Color."""
 
     name = "Mesen"
     max_players = 2
@@ -218,6 +257,11 @@ class Mesen(Emulator):
                                "told which one it is - mapping left unchanged", hw["name"])
             else:
                 slots[player] = slot
+                if player > 0:
+                    filled = _fill_from_player1(config, player)
+                    if filled:
+                        log("INFO", f"Player {player+1}: no XInput mapping, copied Player 1's for",
+                            ", ".join(filled))
                 changed = _retarget(config, player, lambda old, s=slot: s)
                 log("INFO", f"Saving -> Player {player+1} | {hw['name']} | XInput slot {slot} | {changed} keys")
             player += 1

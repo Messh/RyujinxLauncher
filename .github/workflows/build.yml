@@ -85,6 +85,8 @@ jobs:
         if errorlevel 1 exit /b 1
         call .\build.bat Dolphin
         if errorlevel 1 exit /b 1
+        call .\build.bat BizHawk
+        if errorlevel 1 exit /b 1
 
     # build.sh chmods the produced binary itself, so GitHub preserves the
     # executable bit when it zips the artifact
@@ -108,6 +110,7 @@ jobs:
         ./build.sh PPSSPP
         ./build.sh RetroArch
         ./build.sh Dolphin
+        ./build.sh BizHawk
 
     # Upload the Raw Binaries
     # GitHub Actions will automatically ZIP each into '<name>.zip'
@@ -212,6 +215,12 @@ jobs:
       with:
         name: DolphinLauncher-${{ matrix.platform }}
         path: dist/DolphinLauncher${{ matrix.ext }}
+
+    - name: Upload BizHawk Launcher
+      uses: actions/upload-artifact@v4
+      with:
+        name: BizHawkLauncher-${{ matrix.platform }}
+        path: dist/BizHawkLauncher${{ matrix.ext }}
 
   # Runs only for version tags (e.g. V_1_3_0): collects every build artifact
   # and publishes them as a GitHub Release named after the tag.

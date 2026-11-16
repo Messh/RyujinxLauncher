@@ -297,10 +297,11 @@ None of them ever uses `%APPDATA%` or `Documents`.
   game profile that forces a controller profile overrides the launcher.
 * **gopher64:** open it once so it creates its config; its input profiles
   are listed in the launcher.
-* **Mesen:** on Player 1 (and 2) of each console you use, pick an Xbox
-  preset or map an Xbox-style pad once. Mesen reads pads through XInput, so
-  only XInput pads can be pinned; a player left unassigned is moved off the
-  pads given to others.
+* **Mesen:** used for NES, SNES, Game Boy and Game Boy Color. On Player 1
+  of each console, pick an Xbox preset or map an Xbox-style pad once; Player 2
+  (NES/SNES) reuses that layout if it has no XInput mapping of its own. Mesen
+  reads pads through XInput, so only XInput pads can be pinned; a player left
+  unassigned is moved off the pads given to others.
 * **mGBA:** single player; mGBA's own button mapping is kept.
 * **PPSSPP:** single player. With a folder written in `installed.txt`,
   PPSSPP keeps its whole memstick there, config included
@@ -320,7 +321,7 @@ use `RetroArchPath.config` / `DolphinPath.config`.
 | Launcher | Emulator | Players | Portable mode (created if missing) | What the launcher writes | Pads it can pin |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `RetroArchLauncher` | RetroArch (`retroarch.exe`) | 1-`input_max_users` (max 8) | `retroarch.cfg` next to the exe | `input_playerN_joypad_index`, and Player 1's joypad binds copied to every assigned player | Any pad (sdl2 joypad driver) |
-| `DolphinLauncher` | Dolphin (`Dolphin.exe`) | 1-4 | `portable.txt` (data in `User\`) | `GCPadNew.ini` `[GCPadN]` (Device + profile), `Dolphin.ini` `SIDeviceN`, `Hotkeys.ini` | XInput pads as `XInput/<slot>/Gamepad`, others as `SDL/<n>/<name>` |
+| `DolphinLauncher` | Dolphin (`Dolphin.exe`) | 1-4 | `portable.txt` (data in `User\`) | `GCPadNew.ini` `[GCPadN]` (Device + profile), `Dolphin.ini` `SIDeviceN` | XInput pads as `XInput/<slot>/Gamepad`, others as `SDL/<n>/<name>` |
 
 * **RetroArch:** needs `input_joypad_driver = "sdl2"` and the `SDL2.dll`
   next to `retroarch.exe`. Map Player 1 once (Settings > Input > Port 1
@@ -336,6 +337,25 @@ use `RetroArchPath.config` / `DolphinPath.config`.
 
 ---
 
+## 🎮 BizHawk (Mega Drive / Genesis) Support
+
+Independent launcher, like the others. Place it next to `EmuHawk.exe` or use
+`BizHawkPath.config`.
+
+| Launcher | Emulator | Players | Portable mode | What the launcher writes | Pads it can pin |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `BizHawkLauncher` | BizHawk (`EmuHawk.exe`) | 1-2 | Always: `config.ini` next to the exe | `config.ini` `AllTrollers` > `GPGX Genesis Controller` (and `PicoDrive Genesis Controller`): `X<n>` pad binds of `P1`/`P2` | Any SDL game controller |
+
+* Load a Mega Drive game once and map Player 1 in *Config > Controllers*
+  (Xbox-style pads are mapped by default), then close BizHawk. Player 1's pad
+  layout is copied to every assigned player and moved to that player's pad
+  (`X<n>`, n = SDL2 device order). Keyboard keys are kept.
+* The launcher uses BizHawk's own `dll\SDL2.dll`, so pads are numbered the
+  same way. No hotkeys are written.
+* Playnite arguments: `"{ImagePath}"`.
+
+---
+
 ## ⏩ Speed Hotkeys
 
 At every launch the launcher binds speed hotkeys on Player 1's pad. Your own
@@ -347,7 +367,6 @@ bindings (e.g. `Tab`) are kept. Select is never used: too many games need it.
 | DuckStation | R3 (hold) | L3: rewind (hold) ¹ | `[Hotkeys] FastForward`, `Rewind` |
 | PPSSPP | R3 (hold) | L3: rewind (one step per press) ² | `[ControlMapping] Fast-forward`, `Rewind` (needs an existing `controls.ini`) |
 | Mesen | R3 (hold) | L3: rewind (hold) | `Preferences.ShortcutKeys`, second key combination |
-| Dolphin | R3 (hold) | — (no rewind or slow motion) | `Hotkeys.ini` `Emulation Speed/Disable Emulation Speed Limit` += `` `<pad>:Thumb R` `` |
 | melonDS | R3 (hold) | L3: slow motion (hold, no rewind) | `[Instance0.Joystick] HK_FastForward`, `HK_SlowMo` (skipped if the input is used by a DS button) |
 
 ¹ Enable *Settings > Emulation > Rewind*. ² Set *Settings > System > Rewind snapshot interval*.
@@ -355,6 +374,8 @@ bindings (e.g. `Tab`) are kept. Select is never used: too many games need it.
 R3 / L3 still reach the game: in PS1/PS2 games that use stick clicks they
 also trigger the hotkey.
 
+- **Dolphin:** not written; only the pads are mapped. An R3 term left in
+  `Hotkeys.ini` by older versions is removed at launch.
 - **mGBA:** not written. Its built-in profiles for XInput and DualShock 4 pads
   already use R2 = fast-forward and L2 = rewind (held).
 - **Not possible:** Eden, Citron and Azahar only fire controller hotkeys once
