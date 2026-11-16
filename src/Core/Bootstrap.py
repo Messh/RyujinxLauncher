@@ -18,7 +18,7 @@ from .Log import init_log, log
 from .Paths import base_dir
 from .Sdl import load_sdl
 
-LAUNCHER_VERSION = "1.3.13"
+LAUNCHER_VERSION = "1.3.14"
 
 
 def run(emulator):
