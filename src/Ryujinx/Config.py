@@ -207,6 +207,17 @@ def guid_fix(raw_hex, version):
     return f"{part1}-{part2}-{part3}-{part4_a}-{part4_b}"
 
 
+def enable_rumble(entry):
+    """Vibration on for every assigned pad; strengths of 0 become full."""
+    rumble = entry.get("rumble")
+    if not isinstance(rumble, dict):
+        rumble = entry["rumble"] = {}
+    rumble["enable_rumble"] = True
+    for key in ("strong_rumble", "weak_rumble"):
+        if not rumble.get(key):
+            rumble[key] = 1
+
+
 # ============================================================================
 # WRITING THE LAUNCH CONFIG
 # ============================================================================
@@ -264,6 +275,7 @@ def write_input(config_file, assignments, hardware, profiles, version, backend_s
 
         entry = copy.deepcopy(profile_data)
         entry["id"] = matched_hw["ryu_id"]      # Correct GUID with index
+        enable_rumble(entry)
 
         if version == "1.1.1403":
             # Ryujinx (v1.1.1403) knows neither key

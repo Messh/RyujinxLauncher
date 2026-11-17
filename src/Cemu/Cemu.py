@@ -27,7 +27,8 @@ Input (src/input/InputManager.cpp, api/Controller*, ControllerFactory.cpp):
 
 At launch the pad block of each player's file (its own controllerN.xml, or a
 chosen named profile) is pointed at the assigned pad: <uuid> and
-<display_name> change, the type and mappings stay. An XInput block can only
+<display_name> change, <rumble> goes to full when it was off, the type and
+mappings stay. An XInput block can only
 take an XInput pad; an SDL block takes any pad. Other pad blocks in the same
 file are dropped so a second pad does not also drive that player. Files of
 players that are not assigned are left alone.
@@ -265,6 +266,7 @@ class Cemu(Emulator):
 
         _set_text(block, "uuid", uuid)
         _set_text(block, "display_name", display)
+        _enable_rumble(block)
         root = tree.getroot()
         for extra in blocks[1:]:
             root.remove(extra)
@@ -325,6 +327,17 @@ class Cemu(Emulator):
         except Exception as e:
             log("WARNING", "Could not save GUID cache", e)
         return learned
+
+
+def _enable_rumble(block):
+    """<rumble> is the vibration strength (0-1, 0 = off): off becomes full."""
+    try:
+        strength = float((block.findtext("rumble") or "0").strip())
+    except ValueError:
+        strength = 0
+    if strength <= 0:
+        _set_text(block, "rumble", "1")
+        log("INFO", "Vibration enabled", "rumble = 1")
 
 
 def _set_text(parent, tag, text):

@@ -77,7 +77,11 @@ def literal(value):
 
 def set(lines, path, value):
     """Replace `path` in place, or insert it into the deepest existing table."""
-    text = literal(value)
+    set_raw(lines, path, literal(value))
+
+
+def set_raw(lines, path, text):
+    """Like set(), with `text` written verbatim (e.g. "true")."""
     entries = list(_scan(lines))
     for i, kind, full, _ in entries:
         if kind == "key" and full == path:

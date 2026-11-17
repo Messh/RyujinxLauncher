@@ -20,11 +20,13 @@ Output format:
     [2026-04-03 12-00-00] [ERROR]     Config file not found: ~/.config/Ryujinx/Config.json
     [2026-04-03 12-00-00] [EXCEPTION] AppImage mount failed: <traceback>
 
-Log file location is decided by the emulator (Emulator.log_dir()):
-    Windows:   <emulator_dir>/Logs/<Name>Launcher_<version>_<datetime>.log
-    Linux/Mac: ~/.config/<Name>/Logs/<Name>Launcher_<version>_<datetime>.log
+One log file per launcher, overwritten at every start:
+    <Emulator.log_dir()>/<Name>Launcher.log
+Timestamped files left by older versions (<Name>Launcher_<version>_<datetime>.log)
+are deleted.
 """
 
+import glob
 import os
 import sys
 import traceback
@@ -48,19 +50,23 @@ def init_log(log_dir, launcher_version, name="RyujinxLauncher"):
         log_dir (str):          Directory where the log file will be created.
                                 Created automatically if it does not exist.
         launcher_version (str): Launcher version string (e.g. "1.2.0").
-                                Used in the log filename.
-        name (str):             Filename prefix (e.g. "RyujinxLauncher").
+                                Logged by the caller, not part of the filename.
+        name (str):             Log file name without extension (e.g. "RyujinxLauncher").
     """
     global _log_file
 
     try:
         os.makedirs(log_dir, exist_ok=True)
 
-        timestamp   = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename    = f"{name}_{launcher_version}_{timestamp}.log"
-        log_path    = os.path.join(log_dir, filename)
-
+        log_path = os.path.join(log_dir, f"{name}.log")
         _log_file = open(log_path, 'w', encoding='utf-8', buffering=1)  # line-buffered
+
+        # Older versions wrote one timestamped file per run
+        for old in glob.glob(os.path.join(glob.escape(log_dir), f"{glob.escape(name)}_*.log")):
+            try:
+                os.remove(old)
+            except OSError:
+                pass
 
     except Exception as e:
         # Logger must never crash the launcher - silently fall back to console only

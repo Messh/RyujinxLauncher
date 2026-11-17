@@ -56,6 +56,11 @@ XINPUT_DRIVER = "78"      # SDL GUID byte 14 = 'x'
 XINPUT_TO_SDL = {"A": "FaceSouth", "B": "FaceEast", "X": "FaceWest", "Y": "FaceNorth"}
 _SECTION_RE = re.compile(r"^\s*\[(.+)\]\s*$")
 
+# Pad types with rumble motors, and the motor bindings / strength keys
+MOTOR_TYPES = ("DualShock2",)
+MOTORS = ("LargeMotor", "SmallMotor")
+MOTOR_SCALES = ("LargeMotorScale", "SmallMotorScale")
+
 
 # ============================================================================
 # INI - minimal line-preserving reader/writer ("Key = Value")
@@ -353,6 +358,34 @@ def _set_speed_hotkeys(lines, device):
 
 
 # ============================================================================
+# VIBRATION
+# ============================================================================
+def _enable_rumble(updates, current, device):
+    """
+    Bind both motors of a pad type that has them to the assigned pad, so it
+    vibrates even when the mapping was made without them. Scales of 0
+    (vibration turned down to nothing) go back to full.
+    """
+    pad_type = updates.get("Type", current.get("Type", TYPE_NONE))
+    if pad_type not in MOTOR_TYPES:
+        return
+    for motor in MOTORS:
+        if not updates.get(motor, current.get(motor, "")).strip():
+            updates[motor] = f"{device}/{motor}"
+    for scale in MOTOR_SCALES:
+        value = updates.get(scale, current.get(scale))
+        if value is None:
+            continue
+        try:
+            off = float(value) <= 0
+        except ValueError:
+            off = True
+        if off:
+            updates[scale] = "1"
+    log("INFO", "Vibration enabled", device)
+
+
+# ============================================================================
 # WRITING THE LAUNCH CONFIG
 # ============================================================================
 def write_input(config_file, assignments, hardware, profiles):
@@ -393,6 +426,7 @@ def write_input(config_file, assignments, hardware, profiles):
                 updates[key] = _retarget(value, device)
         for key, value in profile.items():
             updates[key] = _retarget(value, device)
+        _enable_rumble(updates, _section_items(lines, section), device)
         _apply(lines, section, updates)
         if not used:
             _set_speed_hotkeys(lines, device)

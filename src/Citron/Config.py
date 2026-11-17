@@ -43,6 +43,11 @@ DEFAULT_PROFILE = "RL Default"
 # Per-player keys that write_input() owns; never copied from a profile
 INJECTED_SUFFIXES = ("connected", "type", "profile_name")
 
+# Vibration: global switch plus per-player switch and strength (percent)
+VIBRATION_KEY = "vibration_enabled"
+VIBRATION_STRENGTH = "vibration_strength"
+FULL_STRENGTH = "100"
+
 _GUID_RE = re.compile(r"(?<![A-Za-z0-9_])guid:[0-9A-Fa-f]+")
 _PORT_RE = re.compile(r"(?<![A-Za-z0-9_])port:\d+")
 
@@ -342,7 +347,16 @@ def write_input(config_file, assignments, hardware, profiles):
                 updates[prefix + suffix] = _retarget(value, guid, port)
         for suffix, value in profiles[assignment["profile_key"]].items():
             updates[prefix + suffix] = _retarget(value, guid, port)
+        # Vibration on for every assigned pad (a strength of 0 is no vibration)
+        updates[prefix + VIBRATION_KEY] = "true"
+        strength = updates.get(prefix + VIBRATION_STRENGTH,
+                               existing.get(prefix + VIBRATION_STRENGTH, "")).strip()
+        if not strength.isdigit() or int(strength) <= 0:
+            updates[prefix + VIBRATION_STRENGTH] = FULL_STRENGTH
         player += 1
+
+    if player:
+        updates[VIBRATION_KEY] = "true"
 
     for i in range(player, MAX_PLAYERS):
         updates[f"player_{i}_connected"] = "false"

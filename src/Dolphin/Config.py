@@ -61,6 +61,10 @@ FAST_FORWARD_INPUT = "Thumb R"
 # A term older launcher versions added: `<any device>:Thumb R`
 _FF_TERM_RE = re.compile(r"\s*\|?\s*`[^`]+:" + re.escape(FAST_FORWARD_INPUT) + r"`")
 
+# GameCube rumble: both motors of the pad (XInput and SDL name them alike)
+RUMBLE_KEY = "Rumble/Motor"
+RUMBLE_MOTORS = "`Motor L`|`Motor R`"
+
 _SECTION_RE = re.compile(r"^\s*\[(.+)\]\s*$")
 _SDL_NAME_RE = re.compile(r"\bButton [SEWN]\b")
 
@@ -213,7 +217,11 @@ def write_input(config_dir, assignments, hardware, profiles):
         port = len(assigned)
         device = names[hw["path"]]
         profile = profiles.get(a.get("profile_key")) or profiles.get(DEFAULT_PROFILE) or {}
-        _replace_section(lines, f"GCPad{port + 1}", {"Device": device, **_for_device(profile, device)})
+        items = {"Device": device, **_for_device(profile, device)}
+        if not items.get(RUMBLE_KEY, "").strip():
+            items[RUMBLE_KEY] = RUMBLE_MOTORS
+            log("INFO", "Vibration enabled", f"GCPad{port + 1} {RUMBLE_KEY} = {RUMBLE_MOTORS}")
+        _replace_section(lines, f"GCPad{port + 1}", items)
         assigned[port] = device
         log("INFO", f"Saving -> Port {port + 1} | {hw['name']} | {device} | Profile: {a.get('profile')}")
 
