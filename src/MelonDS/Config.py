@@ -16,9 +16,11 @@ The button mapping lives in [Instance0.Joystick] and does not name a pad, so
 it is the single "Default" profile; the launcher only sets JoystickID to the
 assigned pad's index among ALL joysticks (Core's "joystick_index").
 
-Speed hotkeys (EmuInstanceInput.cpp hotkeyNames) take one input, not a combo:
-    HK_FastForward = R3      fast-forward while held
+Hotkeys (EmuInstance.cpp hotkeyNames) take one input, not a combo:
+    HK_SwapScreens = R3      swap the two screens (toggles on press)
     HK_SlowMo      = L3      slow motion while held (melonDS has no rewind)
+Fast-forward is not bound: R3 belongs to the screen swap, and any other
+hotkey left on R3 or L3 by an older launcher (HK_FastForward) is cleared.
 They are written in melonDS's joystick encoding, using the joystick-level
 button/hat/axis SDL reports behind each stick click:
     button n                -> n
@@ -38,7 +40,7 @@ from . import Toml
 
 INSTANCE = "Instance0"
 DEFAULT_PROFILE = "Default"
-SPEED_HOTKEYS = (("HK_FastForward", "rightstick", "R3"), ("HK_SlowMo", "leftstick", "L3"))
+HOTKEYS = (("HK_SwapScreens", "rightstick", "R3"), ("HK_SlowMo", "leftstick", "L3"))
 
 
 def _joy_value(bind):
@@ -54,12 +56,14 @@ def _joy_value(bind):
     return None
 
 
-def _set_speed_hotkeys(lines, hw):
+def _set_hotkeys(lines, hw):
     prefix = f"{INSTANCE}.Joystick."
     used = {Toml.get(lines, k): k for k in Toml.all_values(lines)
             if k.startswith(prefix) and not k[len(prefix):].startswith("HK_")}
     bindings = hw.get("raw_bindings") or {}
-    for hotkey, source, label in SPEED_HOTKEYS:
+    hotkeys = {k: Toml.get(lines, k) for k in Toml.all_values(lines)
+               if k.startswith(prefix + "HK_")}
+    for hotkey, source, label in HOTKEYS:
         value = _joy_value(bindings.get(source))
         if value is None:
             log("WARNING", f"{label} not found on this pad, {hotkey} left unchanged", hw["name"])
@@ -67,7 +71,13 @@ def _set_speed_hotkeys(lines, hw):
             log("WARNING", f"{label} is already mapped to {used[value]}, {hotkey} left unchanged")
         else:
             Toml.set(lines, prefix + hotkey, value)
-            log("INFO", f"Speed hotkey (hold): {hotkey} = {label}", hex(value))
+            log("INFO", f"Hotkey: {hotkey} = {label}", hex(value))
+            # Nothing else may fire on the same input (old HK_FastForward = R3)
+            for other, current in hotkeys.items():
+                if other != prefix + hotkey and current == value:
+                    Toml.set(lines, other, -1)
+                    hotkeys[other] = -1
+                    log("INFO", f"Hotkey cleared: {other[len(prefix):]} (was {label})")
 
 
 def _read_lines(path):
@@ -122,7 +132,7 @@ def write_input(config_file, assignments, hardware):
     index = hw["joystick_index"]
     log("INFO", f"Saving -> Player 1 | {hw['name']} | {INSTANCE}.JoystickID = {index}")
     Toml.set(lines, f"{INSTANCE}.JoystickID", index)
-    _set_speed_hotkeys(lines, hw)
+    _set_hotkeys(lines, hw)
 
     try:
         _write_lines(config_file, lines)

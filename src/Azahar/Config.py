@@ -22,6 +22,17 @@ So the launcher's profiles ARE Azahar's profiles. At launch the chosen one
 becomes active and every SDL binding inside it is pointed at the assigned
 pad. Other profiles and every other line stay untouched: the file is edited
 line by line, keeping Qt's quoting and "\\default" companions.
+
+Screen swap hotkey: Azahar's controller hotkeys (citra_qt/hotkey_monitor.cpp)
+take one button or a two-button chord, stored in [UI] as two SDL bindings
+joined by "||" (hotkeys.cpp, UpdateControllerHotkey):
+
+    Shortcuts\\Main%20Window\\Swap%20Screens\\controller_keyseq=
+        "engine:sdl,guid:...,port:0,api:controller,button:7||...button:8"
+
+The launcher binds L3 + R3 on the assigned pad. It fires once per press,
+when both are held and one of them was just pressed. L3/R3 are not 3DS
+buttons, so they never reach the game.
 """
 
 import json
@@ -31,6 +42,12 @@ import re
 from Core.Log import log, fatal
 
 SECTION = "Controls"
+UI_SECTION = "UI"
+SWAP_KEY = "Shortcuts\\Main%20Window\\Swap%20Screens\\controller_keyseq"
+# SDL_GameControllerButton values, used when the profile reads pads through
+# the gamepad API (api:controller)
+SDL_CONTROLLER_LEFTSTICK = 7
+SDL_CONTROLLER_RIGHTSTICK = 8
 GUID_CACHE_FILE = "AzaharLauncher-guids.json"
 
 _PROFILE_KEY_RE = re.compile(r"^profiles\\(\d+)\\(.+)$")
@@ -303,12 +320,38 @@ def write_input(config_file, assignments, hardware, profiles):
             updates[f"profiles\\{index}\\{field}"] = _retarget(value, guid, port)
 
     _apply(lines, SECTION, updates)
+    _set_swap_hotkey(lines, stored.get(index, {}), guid, port, hardware, assignment)
 
     try:
         with open(config_file, "w", encoding="utf-8", errors="surrogateescape", newline="\n") as f:
             f.write("\n".join(lines) + "\n")
     except Exception as e:
         log("EXCEPTION", "Config write failed, Azahar will use the old config", e)
+
+
+def _swap_binding(api_controller, guid, port, button):
+    api = "api:controller," if api_controller else ""
+    return f"engine:sdl,guid:{guid},port:{port},{api}button:{button}"
+
+
+def _set_swap_hotkey(lines, fields, guid, port, hardware, assignment):
+    """Bind Swap Screens to L3 + R3 of the assigned pad."""
+    api_controller = any("api:controller" in v for v in fields.values() if "engine:sdl" in v)
+    if api_controller:
+        buttons = (SDL_CONTROLLER_LEFTSTICK, SDL_CONTROLLER_RIGHTSTICK)
+    else:
+        # Joystick API: the raw SDL button behind each stick click
+        hw = next((h for h in hardware if h["path"] == assignment["path"]), {})
+        raw = hw.get("raw_bindings") or {}
+        binds = [raw.get("leftstick"), raw.get("rightstick")]
+        if not all(b and b[0] == "button" for b in binds):
+            log("WARNING", "L3/R3 are not plain buttons on this pad, Swap Screens left unchanged")
+            return
+        buttons = (binds[0][1], binds[1][1])
+
+    value = "||".join(_swap_binding(api_controller, guid, port, b) for b in buttons)
+    _apply(lines, UI_SECTION, {SWAP_KEY: f'"{value}"', SWAP_KEY + "\\default": "false"})
+    log("INFO", "Swap Screens hotkey = L3 + R3", value)
 
 
 def _apply(lines, section, updates):

@@ -367,7 +367,7 @@ bindings (e.g. `Tab`) are kept. Select is never used: too many games need it.
 | DuckStation | R3 (hold) | L3: rewind (hold) ¹ | `[Hotkeys] FastForward`, `Rewind` |
 | PPSSPP | R3 (hold) | L3: rewind (one step per press) ² | `[ControlMapping] Fast-forward`, `Rewind` (needs an existing `controls.ini`) |
 | Mesen | R3 (hold) | L3: rewind (hold) | `Preferences.ShortcutKeys`, second key combination |
-| melonDS | R3 (hold) | L3: slow motion (hold, no rewind) | `[Instance0.Joystick] HK_FastForward`, `HK_SlowMo` (skipped if the input is used by a DS button) |
+| melonDS | — (R3 swaps the screens) | L3: slow motion (hold, no rewind) | `[Instance0.Joystick] HK_SwapScreens`, `HK_SlowMo` (skipped if the input is used by a DS button) |
 
 ¹ Enable *Settings > Emulation > Rewind*. ² Set *Settings > System > Rewind snapshot interval*.
 
@@ -378,6 +378,12 @@ also trigger the hotkey.
   `Hotkeys.ini` by older versions is removed at launch.
 - **mGBA:** not written. Its built-in profiles for XInput and DualShock 4 pads
   already use R2 = fast-forward and L2 = rewind (held).
+- **melonDS:** R3 swaps the screens (`HK_SwapScreens`, on press). Its hotkeys
+  take a single input, so there is no L3 + R3 combo and no fast-forward; an
+  old `HK_FastForward` on R3 is cleared at launch.
+- **Azahar:** L3 + R3 swaps the screens (`[UI] Shortcuts\Main%20Window\Swap%20Screens\controller_keyseq`,
+  rewritten for the assigned pad at every launch). L3/R3 are not 3DS buttons,
+  so the game never sees them.
 - **Not possible:** Eden, Citron and Azahar only fire controller hotkeys once
   per press. gopher64 already has its own (Select + Z). Ryujinx, xemu and Cemu
   have no controller speed hotkeys.
