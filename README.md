@@ -327,6 +327,7 @@ use `RetroArchPath.config` / `DolphinPath.config`.
   next to `retroarch.exe`. Map Player 1 once (Settings > Input > Port 1
   Controls); that mapping is the profile for every player. Hotkeys are left
   as they are: RetroArch gates all of them behind `input_enable_hotkey`.
+  Only the menu combo is set (L3 + R3).
   Playnite arguments: `-L ".\cores\fbneo_libretro.dll" "{ImagePath}"`.
 * **Dolphin:** map GameCube Port 1 once (Controllers > Port 1 > Configure);
   `[GCPad1]` is the **Default** profile and every `Profiles\GCPad\*.ini` is
@@ -376,11 +377,16 @@ also trigger the hotkey.
 
 - **Dolphin:** not written; only the pads are mapped. An R3 term left in
   `Hotkeys.ini` by older versions is removed at launch.
+- **RetroArch:** L3 + R3 opens the menu (`input_menu_toggle_gamepad_combo = "2"`).
+  RetroArch only offers a fixed list of menu combos; no save/load hotkeys.
 - **mGBA:** not written. Its built-in profiles for XInput and DualShock 4 pads
   already use R2 = fast-forward and L2 = rewind (held).
-- **Mesen:** L1 + L3 = save state, R1 + R3 = load state (current slot,
-  `SaveState` / `LoadState`, second key combination). Press L1 / R1 first:
-  the stick click alone would start rewind / fast-forward for an instant.
+- **Save / load state (selected slot):** L1 + L3 = save, R1 + R3 = load.
+  Press L1 / R1 first: the stick click alone would start rewind /
+  fast-forward for an instant.
+  - Mesen: `SaveState` / `LoadState`, second key combination.
+  - DuckStation: `[Hotkeys] SaveSelectedSaveState` / `LoadSelectedSaveState` (fire on release).
+  - PCSX2: `[Hotkeys] SaveStateToSlot` / `LoadStateFromSlot` (fire on release).
 - **melonDS:** R3 swaps the screens (`HK_SwapScreens`, on press). Its hotkeys
   take a single input, so there is no L3 + R3 combo and no fast-forward; an
   old `HK_FastForward` on R3 is cleared at launch.

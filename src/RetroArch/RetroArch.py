@@ -29,6 +29,10 @@ input_enable_hotkey set (e.g. Select) RetroArch gates every hotkey behind
 it, so a single-button R3/L3 hotkey cannot be added without unlocking all
 the others (menu, exit, save state...).
 
+Menu: input_menu_toggle_gamepad_combo is set to L3 + R3 (input_defines.h,
+enum input_combo_type: INPUT_COMBO_L3_R3 = 2). The combo is a fixed list,
+so no four-button combo is possible; arcade games rarely use stick clicks.
+
 SDL: RetroArch ships SDL2.dll next to retroarch.exe and sets no
 enumeration hints. The launcher loads that same SDL2.dll with SDL's
 defaults so device indexes match.
@@ -51,6 +55,7 @@ CONFIG_NAME = "retroarch.cfg"
 DEFAULT_PROFILE = "Default"
 SDL_PATTERNS = ("SDL2.dll", "libSDL2*.so*", "libSDL2*.dylib")
 MAX_PLAYERS = 8                 # launcher UI limit (RetroArch has 16)
+MENU_COMBO_L3_R3 = 2            # INPUT_COMBO_L3_R3
 
 _LINE_RE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
 # player 1 joypad binds: input_player1_<name>_btn / _axis
@@ -233,6 +238,9 @@ class RetroArch(Emulator):
             index = next(spare)
             updates[f"input_player{n}_joypad_index"] = index
             log("INFO", f"Player {n} unassigned -> joypad index {index} (no pad)")
+
+        updates["input_menu_toggle_gamepad_combo"] = MENU_COMBO_L3_R3
+        log("INFO", "Menu toggle combo", "L3 + R3")
 
         _set(lines, updates)
         try:

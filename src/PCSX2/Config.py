@@ -312,10 +312,20 @@ FAST_FORWARD_HOTKEY = "HoldTurbo"     # R3, fast-forward while held
 # Only the bindings older launcher versions wrote for it are removed.
 SLOW_HOTKEY = "ToggleSlowMotion"
 
-# A binding this launcher wrote before, on any device: a stick click, or
+# A binding this launcher wrote before, on any device: a stick click, a
+# shoulder + stick click chord, or
 # the Select + trigger chord older versions used
 _CHORD_RE = re.compile(r"^(SDL|XInput)-[^/\s&]+/(LeftStick|RightStick)$"
-                       r"|^(SDL|XInput)-[^/\s&]+/Back\s*&\s*(SDL|XInput)-[^/\s&]+/\+(Right|Left)Trigger$")
+                       r"|^(SDL|XInput)-[^/\s&]+/Back\s*&\s*(SDL|XInput)-[^/\s&]+/\+(Right|Left)Trigger$"
+                       r"|^(SDL|XInput)-[^/\s&]+/(Left|Right)Shoulder\s*&\s*(SDL|XInput)-[^/\s&]+/(Left|Right)Stick$")
+
+# Save / load the selected state slot, once per press:
+#   L1 + L3 -> save      R1 + R3 -> load
+# Press the shoulder first: the stick click alone is a speed hotkey.
+STATE_HOTKEYS = (
+    ("SaveStateToSlot", "LeftShoulder", "LeftStick"),
+    ("LoadStateFromSlot", "RightShoulder", "RightStick"),
+)
 
 
 def _set_hotkey(lines, hotkey, chord):
@@ -355,6 +365,13 @@ def _set_speed_hotkeys(lines, device):
     _set_hotkey(lines, FAST_FORWARD_HOTKEY, binding)
     log("INFO", "Speed hotkey", f"{FAST_FORWARD_HOTKEY} = {binding}")
     _set_hotkey(lines, SLOW_HOTKEY, None)
+
+
+def _set_state_hotkeys(lines, device):
+    for hotkey, shoulder, stick in STATE_HOTKEYS:
+        chord = f"{device}/{shoulder} & {device}/{stick}"
+        _set_hotkey(lines, hotkey, chord)
+        log("INFO", "State hotkey", f"{hotkey} = {chord}")
 
 
 # ============================================================================
@@ -430,6 +447,7 @@ def write_input(config_file, assignments, hardware, profiles):
         _apply(lines, section, updates)
         if not used:
             _set_speed_hotkeys(lines, device)
+            _set_state_hotkeys(lines, device)
         used.add(pad)
 
     # Every other pad is unplugged, so no stale binding drives a second player
