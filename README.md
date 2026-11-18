@@ -357,45 +357,76 @@ Independent launcher, like the others. Place it next to `EmuHawk.exe` or use
 
 ---
 
-## ⏩ Speed Hotkeys
+## 🎮 Controller Hotkeys
 
-At every launch the launcher binds speed hotkeys on Player 1's pad. Your own
-bindings (e.g. `Tab`) are kept. Select is never used: too many games need it.
+At every launch the launcher writes these hotkeys for **Player 1's pad**, so
+they follow whichever controller you assign. Your own bindings (e.g.
+keyboard `Tab`, `F1`) are kept. Select is never used: too many games need it.
 
-| Emulator | Fast-forward | Rewind / slow motion | Setting written |
-| :--- | :--- | :--- | :--- |
-| PCSX2 | R3 (hold) | — (no rewind; slow motion left to you) | `[Hotkeys] HoldTurbo` |
-| DuckStation | R3 (hold) | L3: rewind (hold) ¹ | `[Hotkeys] FastForward`, `Rewind` |
-| PPSSPP | R3 (hold) | L3: rewind (one step per press) ² | `[ControlMapping] Fast-forward`, `Rewind` (needs an existing `controls.ini`) |
-| Mesen | R3 (hold) | L3: rewind (hold) | `Preferences.ShortcutKeys`, second key combination |
-| melonDS | — (R3 swaps the screens) | L3: slow motion (hold, no rewind) | `[Instance0.Joystick] HK_SwapScreens`, `HK_SlowMo` (skipped if the input is used by a DS button) |
+### Summary
+
+| Emulator | R3 | L3 | L1 + L3 | R1 + R3 | L3 + R3 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Mesen | Fast-forward (hold) | Rewind (hold) | Save state | Load state | — |
+| DuckStation | Fast-forward (hold) | Rewind (hold) ¹ | Save state | Load state | — |
+| PCSX2 | Fast-forward (hold) | — | Save state | Load state | — |
+| PPSSPP | Fast-forward (hold) | Rewind (one step per press) ² | — | — | — |
+| melonDS | Swap screens | Slow motion (hold) | — | — | — |
+| Azahar | — | — | — | — | Swap screens |
+| RetroArch (FBNeo) | — | — | — | — | Open menu |
 
 ¹ Enable *Settings > Emulation > Rewind*. ² Set *Settings > System > Rewind snapshot interval*.
+
+Save / load always use the **selected slot**. Press **L1 / R1 first**, then
+the stick click: pressed alone, the stick click starts rewind / fast-forward
+for an instant.
 
 R3 / L3 still reach the game: in PS1/PS2 games that use stick clicks they
 also trigger the hotkey.
 
-- **Dolphin:** not written; only the pads are mapped. An R3 term left in
-  `Hotkeys.ini` by older versions is removed at launch.
-- **RetroArch:** L3 + R3 opens the menu (`input_menu_toggle_gamepad_combo = "2"`).
-  RetroArch only offers a fixed list of menu combos; no save/load hotkeys.
-- **mGBA:** not written. Its built-in profiles for XInput and DualShock 4 pads
-  already use R2 = fast-forward and L2 = rewind (held).
-- **Save / load state (selected slot):** L1 + L3 = save, R1 + R3 = load.
-  Press L1 / R1 first: the stick click alone would start rewind /
-  fast-forward for an instant.
-  - Mesen: `SaveState` / `LoadState`, second key combination.
-  - DuckStation: `[Hotkeys] SaveSelectedSaveState` / `LoadSelectedSaveState` (fire on release).
-  - PCSX2: `[Hotkeys] SaveStateToSlot` / `LoadStateFromSlot` (fire on release).
-- **melonDS:** R3 swaps the screens (`HK_SwapScreens`, on press). Its hotkeys
-  take a single input, so there is no L3 + R3 combo and no fast-forward; an
-  old `HK_FastForward` on R3 is cleared at launch.
-- **Azahar:** L3 + R3 swaps the screens (`[UI] Shortcuts\Main%20Window\Swap%20Screens\controller_keyseq`,
-  rewritten for the assigned pad at every launch). L3/R3 are not 3DS buttons,
-  so the game never sees them.
-- **Not possible:** Eden, Citron and Azahar only fire controller hotkeys once
-  per press. gopher64 already has its own (Select + Z). Ryujinx, xemu and Cemu
-  have no controller speed hotkeys.
+### Per emulator
+
+**Mesen** (`settings.json`, `Preferences.ShortcutKeys`, second key combination of each shortcut)
+- R3 → `FastForward` (hold) · L3 → `Rewind` (hold)
+- L1 + L3 → `SaveState` · R1 + R3 → `LoadState` (on press)
+
+**DuckStation** (`settings.ini`, `[Hotkeys]`)
+- R3 → `FastForward` (hold) · L3 → `Rewind` (hold)
+- L1 + L3 → `SaveSelectedSaveState` · R1 + R3 → `LoadSelectedSaveState` (on release)
+
+**PCSX2** (`PCSX2.ini`, `[Hotkeys]`)
+- R3 → `HoldTurbo` (hold). No rewind; slow motion is left to you.
+- L1 + L3 → `SaveStateToSlot` · R1 + R3 → `LoadStateFromSlot` (on release)
+
+**PPSSPP** (`controls.ini`, `[ControlMapping]`; needs an existing `controls.ini`)
+- R3 → `Fast-forward` (hold) · L3 → `Rewind` (one step per press)
+
+**melonDS** (`melonDS.toml`, `[Instance0.Joystick]`)
+- R3 → `HK_SwapScreens` (on press) · L3 → `HK_SlowMo` (hold)
+- Its hotkeys take a single input, so there are no combos and no
+  fast-forward; an old `HK_FastForward` on R3 is cleared. A hotkey is
+  skipped if its input is already used by a DS button.
+
+**Azahar** (`qt-config.ini`, `[UI] Shortcuts\Main%20Window\Swap%20Screens\controller_keyseq`)
+- L3 + R3 → Swap Screens (on press). L3/R3 are not 3DS buttons, so the game
+  never sees them.
+
+**RetroArch (FinalBurn Neo)** (`retroarch.cfg`)
+- L3 + R3 → open the menu (`input_menu_toggle_gamepad_combo = "2"`).
+  RetroArch only offers a fixed list of menu combos, and every other hotkey
+  is gated behind `input_enable_hotkey`, so nothing else is written.
+
+### Not written
+
+- **Dolphin:** only the pads are mapped. An R3 term left in `Hotkeys.ini` by
+  older versions is removed at launch.
+- **mGBA:** its built-in profiles for XInput and DualShock 4 pads already use
+  R2 = fast-forward and L2 = rewind (held).
+- **gopher64:** has its own (Select + Z).
+- **BizHawk:** only the pads are mapped.
+- **Eden, Citron:** controller hotkeys fire only once per press, so no held
+  speed hotkeys.
+- **Ryujinx, xemu, Cemu:** no controller hotkeys for these actions.
 
 ---
 
