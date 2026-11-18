@@ -378,6 +378,9 @@ also trigger the hotkey.
   `Hotkeys.ini` by older versions is removed at launch.
 - **mGBA:** not written. Its built-in profiles for XInput and DualShock 4 pads
   already use R2 = fast-forward and L2 = rewind (held).
+- **Mesen:** L1 + L3 = save state, R1 + R3 = load state (current slot,
+  `SaveState` / `LoadState`, second key combination). Press L1 / R1 first:
+  the stick click alone would start rewind / fast-forward for an instant.
 - **melonDS:** R3 swaps the screens (`HK_SwapScreens`, on press). Its hotkeys
   take a single input, so there is no L3 + R3 combo and no fast-forward; an
   old `HK_FastForward` on R3 is cleared at launch.

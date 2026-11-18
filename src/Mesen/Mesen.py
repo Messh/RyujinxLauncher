@@ -44,14 +44,25 @@ XINPUT_BASE = 0x1000
 XINPUT_SLOTS = 4
 XINPUT_DRIVER = "78"          # SDL GUID byte 14 = 'x'
 
-# Speed shortcuts on player 1's pad, both while held (EmulatorShortcut):
-#   R3 -> FastForward      L3 -> Rewind
+# Shortcuts on player 1's pad (EmulatorShortcut):
+#   R3      -> FastForward (while held)    L3      -> Rewind (while held)
+#   L1 + L3 -> SaveState   (current slot)  R1 + R3 -> LoadState (current slot)
 # XInput button numbers (Windows/WindowsKeyManager.cpp buttonNames, 1-based,
-# bit order of XINPUT_GAMEPAD_*): L3 = 7 (LEFT_THUMB 0x40), R3 = 8 (RIGHT_THUMB 0x80).
+# bit order of XINPUT_GAMEPAD_*): L3 = 7 (LEFT_THUMB 0x40), R3 = 8 (RIGHT_THUMB
+# 0x80), L1 = 9 (LEFT_SHOULDER 0x100), R1 = 10 (RIGHT_SHOULDER 0x200).
 # Preferences.ShortcutKeys holds two alternative combos per shortcut
-# (KeyCombination / KeyCombination2). The first one, normally a keyboard key,
-# is kept; the second one becomes the stick click.
-SPEED_SHORTCUTS = (("FastForward", 8, "R3"), ("Rewind", 7, "L3"))
+# (KeyCombination / KeyCombination2), up to three keys each. The first one,
+# normally a keyboard key, is kept; the second one becomes the pad combo.
+# Mesen ignores a shortcut while a superset combo is held
+# (ShortcutKeyHandler.cpp), so L1 + L3 does not rewind, as long as L1 is
+# pressed first; pressing L3 first rewinds until L1 joins it.
+L1, R1, L3, R3 = 9, 10, 7, 8
+PAD_SHORTCUTS = (
+    ("FastForward", (R3,), "R3 (hold)"),
+    ("Rewind", (L3,), "L3 (hold)"),
+    ("SaveState", (L1, L3), "L1 + L3"),
+    ("LoadState", (R1, R3), "R1 + R3"),
+)
 
 # Config paths (console, port) per player
 PLAYER_PORTS = [
@@ -222,22 +233,23 @@ class Mesen(Emulator):
         return {DEFAULT_PROFILE: None}
 
     @staticmethod
-    def _set_speed_shortcuts(config, slot):
-        """Second combo of FastForward / Rewind = R3 / L3 on player 1's pad."""
+    def _set_pad_shortcuts(config, slot):
+        """Second combo of each PAD_SHORTCUTS entry, on player 1's pad."""
         shortcuts = (config.get("Preferences") or {}).get("ShortcutKeys")
         if not isinstance(shortcuts, list):
             log("WARNING", "No Preferences.ShortcutKeys in settings.json yet; "
-                           "start Mesen once to create it", "speed shortcuts not set")
+                           "start Mesen once to create it", "pad shortcuts not set")
             return
         base = XINPUT_BASE + slot * 0x100
-        for name, button, label in SPEED_SHORTCUTS:
+        for name, buttons, label in PAD_SHORTCUTS:
             entry = next((e for e in shortcuts
                           if isinstance(e, dict) and e.get("Shortcut") == name), None)
             if entry is None:
                 entry = {"Shortcut": name, "KeyCombination": {"Key1": 0, "Key2": 0, "Key3": 0}}
                 shortcuts.append(entry)
-            entry["KeyCombination2"] = {"Key1": base + button, "Key2": 0, "Key3": 0}
-            log("INFO", f"Speed shortcut (hold): {name} = {label} on XInput slot", str(slot))
+            keys = [base + b for b in buttons] + [0, 0, 0]
+            entry["KeyCombination2"] = {"Key1": keys[0], "Key2": keys[1], "Key3": keys[2]}
+            log("INFO", f"Shortcut: {name} = {label} on XInput slot", str(slot))
 
     def write_input_config(self, assignments, hardware):
         config = self._load()
@@ -279,7 +291,7 @@ class Mesen(Emulator):
                 log("INFO", f"Player {p+1} unassigned: moved off assigned pads to slot", str(spare))
 
         if 0 in slots:
-            self._set_speed_shortcuts(config, slots[0])
+            self._set_pad_shortcuts(config, slots[0])
 
         try:
             with open(self.config_path, "w", encoding="utf-8") as f:
