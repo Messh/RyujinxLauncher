@@ -104,7 +104,7 @@ Profile choices are remembered per controller (by HID path), so reconnecting the
 ### Joy-Con Profiles
 
 The **RL Joy-Con (L)** and **RL Joy-Con (R)** profiles are available in every
-Switch launcher (Ryujinx, Nextendo, Citron, Citron-Nextendo, Eden) and turn
+Switch launcher (Ryujinx, Nextendo, Citron, Citron-Nextendo, Eden, yuzu) and turn
 the pad into one Joy-Con held sideways. They are built from RL Default, so
 your own layout, deadzones and motion settings carry over:
 
@@ -180,6 +180,43 @@ are hidden. Only Players 1–8 are rewritten; every other setting is preserved.
 
 > **Note:** Use docked mode, and make sure per-game configurations do not
 > override input, otherwise Eden ignores the launcher's assignment.
+
+---
+
+## 🟦 yuzu Support
+
+**yuzu** (mainline or early access) gets its own, fully independent launcher,
+`YuzuLauncher`, with every feature of `EdenLauncher`: Players 1–8, kill combo,
+hot-plug, profile selection and the Joy-Con profiles. It shares only the
+emulator-agnostic `Core/` with the other launchers.
+
+**Setup**
+
+* Place `YuzuLauncher.exe` next to `yuzu.exe` (Linux: next to `yuzu*.AppImage`;
+  macOS: next to `yuzu.app`), or point to it with a `YuzuPath.config` file.
+* Open yuzu once, go to **Emulation → Configure → Controls**, map **any
+  gamepad** to Player 1 and press **OK**. That mapping becomes the
+  **RL Default** profile and is re-targeted to every pad you assign.
+
+**Portable only.** The launcher always uses `<yuzu folder>\user\` and creates
+it when missing, so yuzu runs in portable mode too, even when opened without
+the launcher. `%APPDATA%\yuzu` (and `~/.config/yuzu` on Linux/macOS) is never
+read or written: copy its contents into `user\` once if you want to keep an
+existing setup.
+
+| File | Path |
+| :--- | :--- |
+| Config | `<yuzu folder>\user\config\qt-config.ini` |
+| Profiles | `<yuzu folder>\user\config\input\*.ini` |
+| Logs | `<yuzu folder>\user\log\` |
+
+**Profiles** are yuzu's own input profiles, created from yuzu's Controls
+dialog. Keyboard-only profiles are hidden. Only Players 1–8 are rewritten;
+every other setting is preserved.
+
+> **Note:** Leave **Enable raw input** (`enable_raw_input`) off unless you need
+> more than 4 XInput pads at once, use docked mode, and make sure per-game
+> configurations do not override input.
 
 ---
 
@@ -445,7 +482,7 @@ also trigger the hotkey.
   R2 = fast-forward and L2 = rewind (held).
 - **gopher64:** has its own (Select + Z).
 - **BizHawk:** only the pads are mapped.
-- **Eden, Citron:** controller hotkeys fire only once per press, so no held
+- **Eden, Citron, yuzu:** controller hotkeys fire only once per press, so no held
   speed hotkeys.
 - **Ryujinx, xemu, Cemu:** no controller hotkeys for these actions.
 
@@ -547,8 +584,12 @@ ProjectRoot/
 │   │   ├── Version.py              #   version detection (PE / plist / binary scan)
 │   │   └── Config.py               #   Config.json template, profiles, input writer
 │   ├── EdenLauncher.py             # entry point (Eden)
-│   └── Eden/                       # everything Eden-specific
-│       ├── Eden.py                 #   paths, portable mode, SDL detection, AppImage
+│   ├── Eden/                       # everything Eden-specific
+│   │   ├── Eden.py                 #   paths, portable mode, SDL detection, AppImage
+│   │   └── Config.py               #   qt-config.ini [Controls], input profiles
+│   ├── YuzuLauncher.py             # entry point (yuzu)
+│   └── Yuzu/                       # everything yuzu-specific
+│       ├── Yuzu.py                 #   portable-only user/ folder, SDL detection, AppImage
 │       └── Config.py               #   qt-config.ini [Controls], input profiles
 └── requirements.txt
 ```
