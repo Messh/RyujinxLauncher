@@ -83,6 +83,8 @@ The launcher lets you pick a **controller profile** (button mappings, deadzone, 
 | Profile | Description |
 | :--- | :--- |
 | **RL Default** | The controller mapping template from your existing `Config.json`. This is selected by default. |
+| **RL Joy-Con (L)** | RL Default turned into a **single left Joy-Con held sideways** (for games where each player uses one Joy-Con). |
+| **RL Joy-Con (R)** | RL Default turned into a **single right Joy-Con held sideways**. |
 | **Custom Profiles** | Any `.json` files saved in Ryujinx's `profiles/controller/` directory. |
 
 ### Creating Profiles
@@ -98,6 +100,25 @@ Profiles are created using **Ryujinx's built-in profile save** feature:
 > **Tip:** To set a personalized default, save a profile named **"RL Default"** in Ryujinx — the launcher will automatically use it instead of the `Config.json` template.
 
 Profile choices are remembered per controller (by HID path), so reconnecting the same gamepad restores its last-used profile.
+
+### Joy-Con Profiles
+
+The **RL Joy-Con (L)** and **RL Joy-Con (R)** profiles are available in every
+Switch launcher (Ryujinx, Nextendo, Citron, Citron-Nextendo, Eden) and turn
+the pad into one Joy-Con held sideways. They are built from RL Default, so
+your own layout, deadzones and motion settings carry over:
+
+| Your pad | Joy-Con (L) | Joy-Con (R) |
+| :--- | :--- | :--- |
+| `A` / `B` / `X` / `Y` (Switch positions) | `▼` / `◄` / `►` / `▲` | `X` / `A` / `Y` / `B` |
+| Left stick (+ click) | Stick, rotated a quarter turn | Stick, rotated a quarter turn |
+| `L` / `R` | `SL` / `SR` | `SL` / `SR` |
+| `ZL` / `ZR` | `L` / `ZL` | `R` / `ZR` |
+| `+` | `−` | `+` |
+
+The game sees a real sideways Joy-Con, so it shows the same buttons it asks
+you to press. A profile saved in the emulator with one of these names replaces
+the built-in one.
 
 ---
 

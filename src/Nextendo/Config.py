@@ -106,6 +106,61 @@ HOME_MENU_DEFAULTS = {
 # Fields write_input() injects per launch, stripped from profiles on load
 INJECTED_FIELDS = ("backend", "id", "name", "controller_type", "player_index")
 
+PRO_CONTROLLER = "ProController"
+
+# Last "RL Default" taken from a ProController entry, for launches after which
+# every player was a Joy-Con
+TEMPLATE_CACHE_FILE = "NextendoLauncher-template.json"
+
+# ----------------------------------------------------------------------------
+# Single Joy-Con profiles, derived from "RL Default"
+#
+# A single Joy-Con reaches the game raw (Ryujinx HLE NpadDevices only sets its style,
+# nothing is rotated); the game itself turns it sideways. So a pad that plays
+# as a sideways Joy-Con must press the Joy-Con's own buttons and feed its stick
+# in the Joy-Con's vertical frame:
+#
+#   sideways     east  south  north  west
+#   Joy-Con (L)  Down  Left   Right  Up
+#   Joy-Con (R)  X     A      Y      B
+#
+# Mapping entries are (section, key) <- (template section, template key): the
+# Joy-Con input takes the pad button the template binds to the source input.
+# The pad's left stick drives the Joy-Con's only stick, a quarter turn rotated.
+# ----------------------------------------------------------------------------
+_L, _R = "left_joycon", "right_joycon"
+JOYCON_PROFILES = {
+    "RL Joy-Con (L)": {
+        "controller_type": "JoyconLeft",
+        "buttons": [
+            ((_L, "dpad_down"), (_R, "button_a")),
+            ((_L, "dpad_left"), (_R, "button_b")),
+            ((_L, "dpad_right"), (_R, "button_x")),
+            ((_L, "dpad_up"), (_R, "button_y")),
+            ((_L, "button_sl"), (_L, "button_l")),
+            ((_L, "button_sr"), (_R, "button_r")),
+            ((_L, "button_l"), (_L, "button_zl")),
+            ((_L, "button_zl"), (_R, "button_zr")),
+            ((_L, "button_minus"), (_R, "button_plus")),
+        ],
+        "quarter_turns_cw": 1,   # Joy-Con (L) is held rotated counter-clockwise
+    },
+    "RL Joy-Con (R)": {
+        "controller_type": "JoyconRight",
+        "buttons": [
+            ((_R, "button_x"), (_R, "button_a")),
+            ((_R, "button_a"), (_R, "button_b")),
+            ((_R, "button_y"), (_R, "button_x")),
+            ((_R, "button_b"), (_R, "button_y")),
+            ((_R, "button_sl"), (_L, "button_l")),
+            ((_R, "button_sr"), (_R, "button_r")),
+            ((_R, "button_r"), (_L, "button_zl")),
+            ((_R, "button_zr"), (_R, "button_zr")),
+        ],
+        "quarter_turns_cw": 3,   # Joy-Con (R) is held rotated clockwise
+    },
+}
+
 
 # ============================================================================
 # TEMPLATE
@@ -128,12 +183,22 @@ def load_template(config_file):
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        found = False
         if isinstance(data.get("input_config"), list):
             for entry in data["input_config"]:
                 if (entry.get("backend") in ("GamepadSDL2", "GamepadSDL3") and
-                        entry.get("controller_type") == "ProController"):
+                        entry.get("controller_type") == PRO_CONTROLLER):
                     template = copy.deepcopy(entry)
+                    found = True
                     break
+        if found:
+            _save_template(config_file, template)
+        else:
+            # Every pad played as a Joy-Con last time: reuse the last Pro mapping
+            cached = _cached_template(config_file)
+            if cached:
+                log("INFO", "Default mapping taken from", TEMPLATE_CACHE_FILE)
+                template = cached
     except Exception as e:
         log("ERROR", "Config file corrupted", config_file)
         log("EXCEPTION", "Config read exception", e)
@@ -151,6 +216,32 @@ def load_template(config_file):
             for key, value in defaults.items():
                 template[section].setdefault(key, value)
 
+    return template
+
+
+def _template_cache_path(config_file):
+    return os.path.join(os.path.dirname(config_file), TEMPLATE_CACHE_FILE)
+
+
+def _save_template(config_file, template):
+    try:
+        with open(_template_cache_path(config_file), 'w', encoding='utf-8') as f:
+            json.dump(template, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        log("WARNING", "Could not save the default mapping", e)
+
+
+def _cached_template(config_file):
+    try:
+        with open(_template_cache_path(config_file), 'r', encoding='utf-8') as f:
+            template = json.load(f)
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        log("WARNING", "Ignoring unreadable default mapping cache", e)
+        return None
+    if not isinstance(template, dict) or template.get("controller_type") != PRO_CONTROLLER:
+        return None
     return template
 
 
@@ -186,8 +277,52 @@ def load_profiles(config_file, template):
                 log("WARNING", "Skipping corrupted profile", filepath)
                 log("EXCEPTION", "Profile load exception", e)
 
+    # Joy-Con profiles right after "RL Default" (even an on-disk one), built
+    # from it, unless a profile on disk already uses that name
+    default = profiles.pop("RL Default")
+    joycons = {name: _joycon_profile(default, spec)
+               for name, spec in JOYCON_PROFILES.items() if name not in profiles}
+    profiles = {"RL Default": default, **joycons, **profiles}
+
     log("INFO", "Profiles loaded", str(len(profiles)))
     return profiles
+
+
+def _joycon_profile(template, spec):
+    """A copy of `template` that plays as a sideways single Joy-Con."""
+    profile = copy.deepcopy(template)
+    profile["controller_type"] = spec["controller_type"]
+
+    for (section, key), (src_section, src_key) in spec["buttons"]:
+        source = template.get(src_section)
+        if isinstance(source, dict) and src_key in source:
+            profile.setdefault(section, {})[key] = source[src_key]
+
+    left = copy.deepcopy(template.get("left_joycon_stick") or {"joystick": "Left"})
+    if spec["controller_type"] == "JoyconRight":
+        # the right Joy-Con's stick is driven by the pad's left stick (and its
+        # click); the physical right stick moves to the unused left slot
+        right = copy.deepcopy(template.get("right_joycon_stick") or {"joystick": "Right"})
+        profile["left_joycon_stick"] = right
+        profile["right_joycon_stick"] = left
+    else:
+        profile["left_joycon_stick"] = left
+    _turn_stick(left, spec["quarter_turns_cw"])
+    return profile
+
+
+def _turn_stick(stick, quarter_turns_cw):
+    """
+    Add quarter turns (clockwise) to a stick config. Ryujinx applies
+    invert_stick_x/y first, then rotate90_cw as (x, y) -> (y, -x)
+    (Ryujinx.Input.SDL3/SDL3Gamepad.cs GetStick). Two turns are both axes
+    inverted, which commutes with the rotation.
+    """
+    turns = (quarter_turns_cw + (1 if stick.get("rotate90_cw") else 0)) % 4
+    if turns >= 2:
+        stick["invert_stick_x"] = not stick.get("invert_stick_x", False)
+        stick["invert_stick_y"] = not stick.get("invert_stick_y", False)
+    stick["rotate90_cw"] = bool(turns % 2)
 
 
 # ============================================================================
@@ -280,7 +415,8 @@ def write_input(config_file, assignments, hardware, profiles):
         entry["name"] = matched_hw["name"]
         entry["player_index"] = f"Player{i+1}"
         entry["backend"] = BACKEND_STRING
-        entry["controller_type"] = "ProController"
+        # On-disk profiles lose controller_type on load, so they stay Pro
+        entry["controller_type"] = profile_data.get("controller_type") or PRO_CONTROLLER
         new_input.append(entry)
 
     data["input_config"] = new_input

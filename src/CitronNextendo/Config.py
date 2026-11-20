@@ -43,6 +43,60 @@ DEFAULT_PROFILE = "RL Default"
 # Per-player keys that write_input() owns; never copied from a profile
 INJECTED_SUFFIXES = ("connected", "type", "profile_name")
 
+# ----------------------------------------------------------------------------
+# Single Joy-Con profiles, derived from "RL Default"
+#
+# A single Joy-Con reaches the game raw (hid_core npad.cpp keeps only one side's
+# buttons and stick, nothing rotated); the game itself turns it sideways. So a
+# pad that plays as a sideways Joy-Con must press the Joy-Con's own buttons and
+# feed its stick in the Joy-Con's vertical frame:
+#
+#   sideways     east  south  north  west   SL  SR
+#   Joy-Con (L)  Down  Left   Right  Up     -   -
+#   Joy-Con (R)  X     A      Y      B      -   -
+#
+# Each entry is {Joy-Con key: template key whose binding it takes}. The pad's
+# left stick drives the Joy-Con's only stick, rotated a quarter turn.
+# ----------------------------------------------------------------------------
+TYPE_KEY = "type"                # carried only by the built-in Joy-Con profiles
+# Last "RL Default" taken from a Pro Controller player, for launches after
+# which every player was a Joy-Con
+TEMPLATE_CACHE_FILE = "CitronNextendoLauncher-template.json"
+JOYCON_PROFILES = {
+    "RL Joy-Con (L)": {
+        "type": "2",             # Settings::ControllerType::LeftJoycon
+        "stick": "lstick",
+        "turn": "ccw",           # Joy-Con (L) is held rotated counter-clockwise
+        "buttons": {
+            "button_ddown": "button_a",
+            "button_dleft": "button_b",
+            "button_dright": "button_x",
+            "button_dup": "button_y",
+            "button_slleft": "button_l",
+            "button_srleft": "button_r",
+            "button_l": "button_zl",
+            "button_zl": "button_zr",
+            "button_minus": "button_plus",
+        },
+    },
+    "RL Joy-Con (R)": {
+        "type": "3",             # Settings::ControllerType::RightJoycon
+        "stick": "rstick",
+        "turn": "cw",            # Joy-Con (R) is held rotated clockwise
+        "buttons": {
+            "button_x": "button_a",
+            "button_a": "button_b",
+            "button_y": "button_x",
+            "button_b": "button_y",
+            "button_slright": "button_l",
+            "button_srright": "button_r",
+            "button_r": "button_zl",
+            "button_zr": "button_zr",
+            "button_rstick": "button_lstick",
+        },
+    },
+}
+
 # Vibration: global switch plus per-player switch and strength (percent)
 VIBRATION_KEY = "vibration_enabled"
 VIBRATION_STRENGTH = "vibration_strength"
@@ -138,11 +192,46 @@ def load_template(config_file):
         prefix = f"player_{i}_"
         if items.get(prefix + "connected", "").strip().lower() != "true":
             continue
+        # A Joy-Con player holds a rotated Joy-Con profile, not the user's layout
+        if items.get(prefix + TYPE_KEY, PRO_CONTROLLER).strip().strip('"') != PRO_CONTROLLER:
+            continue
         profile = _profile_from_items(items, prefix)
         if _is_sdl_profile(profile):
             log("INFO", "Default mapping taken from", f"player_{i}")
+            _save_template(config_file, profile)
             return profile
-    return {}
+
+    # Every pad played as a Joy-Con last time: reuse the last Pro mapping seen
+    template = _cached_template(config_file)
+    if template:
+        log("INFO", "Default mapping taken from", TEMPLATE_CACHE_FILE)
+    return template
+
+
+def _template_cache_path(config_file):
+    return os.path.join(os.path.dirname(config_file), TEMPLATE_CACHE_FILE)
+
+
+def _save_template(config_file, profile):
+    try:
+        with open(_template_cache_path(config_file), "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        log("WARNING", "Could not save the default mapping", e)
+
+
+def _cached_template(config_file):
+    try:
+        with open(_template_cache_path(config_file), "r", encoding="utf-8") as f:
+            profile = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        log("WARNING", "Ignoring unreadable default mapping cache", e)
+        return {}
+    if not isinstance(profile, dict) or not _is_sdl_profile(profile):
+        return {}
+    return {str(k): str(v) for k, v in profile.items()}
 
 
 def load_profiles(config_file, template):
@@ -172,9 +261,13 @@ def load_profiles(config_file, template):
             continue
         profiles[name] = profile
 
-    if DEFAULT_PROFILE in profiles and next(iter(profiles)) != DEFAULT_PROFILE:
-        # an on-disk "RL Default" still has to be the first entry
-        profiles = {DEFAULT_PROFILE: profiles.pop(DEFAULT_PROFILE), **profiles}
+    if DEFAULT_PROFILE in profiles:
+        # "RL Default" (even an on-disk one) first, then the Joy-Con profiles
+        # built from it, unless a profile on disk already uses that name
+        default = profiles.pop(DEFAULT_PROFILE)
+        joycons = {name: _joycon_profile(default, spec)
+                   for name, spec in JOYCON_PROFILES.items() if name not in profiles}
+        profiles = {DEFAULT_PROFILE: default, **joycons, **profiles}
 
     if not profiles:
         fatal(
@@ -188,6 +281,54 @@ def load_profiles(config_file, template):
 
     log("INFO", "Profiles loaded", str(len(profiles)))
     return profiles
+
+
+def _joycon_profile(template, spec):
+    """A copy of `template` that plays as a sideways single Joy-Con."""
+    profile = dict(template)
+    profile[TYPE_KEY] = spec["type"]
+    for target, source in spec["buttons"].items():
+        if source in template:
+            profile[target] = template[source]
+    if "lstick" in template:
+        profile[spec["stick"]] = _turn_stick(template["lstick"], spec["turn"])
+    return profile
+
+
+def _turn_stick(value, turn):
+    """
+    Rotate an SDL stick binding a quarter turn ("cw" or "ccw") by swapping its
+    axes and fixing their signs. Citron reads x = sx * raw(axis_x) and, for
+    SDL, y = sy * -raw(axis_y), where s = -1 when invert_x/invert_y is "-"
+    (input_common/input_poller.cpp). Offsets follow their physical axis.
+    """
+    raw = value.strip()
+    quoted = len(raw) >= 2 and raw[0] == raw[-1] == '"'
+    body = raw[1:-1] if quoted else raw
+    if "engine:sdl" not in body:
+        return value
+
+    params = dict(p.split(":", 1) if ":" in p else (p, "") for p in body.split(",") if p)
+    axis_x, axis_y = params.get("axis_x", "0"), params.get("axis_y", "1")
+    sign_x = -1 if params.get("invert_x", "+") == "-" else 1
+    sign_y = -1 if params.get("invert_y", "+") != "+" else 1
+
+    # user frame (ux, uy) -> Joy-Con frame: ccw (x, y) = (uy, -ux), cw (x, y) = (-uy, ux)
+    # ux = sign_x * raw(axis_x), uy = sign_y * -raw(axis_y)
+    if turn == "ccw":
+        new_sign_x, new_sign_y = -sign_y, sign_x
+    else:
+        new_sign_x, new_sign_y = sign_y, -sign_x
+
+    params["axis_x"], params["axis_y"] = axis_y, axis_x
+    params["invert_x"] = "-" if new_sign_x < 0 else "+"
+    params["invert_y"] = "-" if new_sign_y < 0 else "+"
+    if "offset_x" in params or "offset_y" in params:
+        params["offset_x"], params["offset_y"] = (params.get("offset_y", "0"),
+                                                  params.get("offset_x", "0"))
+
+    body = ",".join(f"{k}:{v}" if v != "" else k for k, v in params.items())
+    return f'"{body}"' if quoted else body
 
 
 # ============================================================================
@@ -336,17 +477,20 @@ def write_input(config_file, assignments, hardware, profiles):
             continue
         guid, port, name = matched
         prefix = f"player_{player}_"
-        log("INFO", f"Saving -> Player {player+1} | {name} | Profile: {assignment['profile_key']} | port {port} | guid {guid}")
+        profile = profiles[assignment["profile_key"]]
+        controller_type = profile.get(TYPE_KEY, PRO_CONTROLLER)
+        log("INFO", f"Saving -> Player {player+1} | {name} | Profile: {assignment['profile_key']} | type {controller_type} | port {port} | guid {guid}")
 
         updates[prefix + "connected"] = "true"
-        updates[prefix + "type"] = PRO_CONTROLLER
+        updates[prefix + "type"] = controller_type
         # Bindings the profile does not define must not keep pointing at
         # whichever pad this player slot had last time
         for suffix, value in _profile_from_items(existing, prefix).items():
             if "engine:sdl" in value:
                 updates[prefix + suffix] = _retarget(value, guid, port)
-        for suffix, value in profiles[assignment["profile_key"]].items():
-            updates[prefix + suffix] = _retarget(value, guid, port)
+        for suffix, value in profile.items():
+            if suffix != TYPE_KEY:
+                updates[prefix + suffix] = _retarget(value, guid, port)
         # Vibration on for every assigned pad (a strength of 0 is no vibration)
         updates[prefix + VIBRATION_KEY] = "true"
         strength = updates.get(prefix + VIBRATION_STRENGTH,
